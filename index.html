@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>salva · Writeups de Sherlocks</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#050b17; --panel:#0a1322; --line:#1b2a40; --text:#e8edf5; --muted:#9fb0c6;
+  --title:#5fb3c9; --accent:#8fd14f; --a:#4f6bff; --b:#b84fff;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.55 Inter,system-ui,sans-serif}
+a{color:inherit;text-decoration:none}
+a:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+
+header{display:flex;align-items:center;justify-content:space-between;padding:18px 36px;border-bottom:1px solid var(--line)}
+.logo{font:26px 'Press Start 2P',monospace;background:linear-gradient(180deg,var(--a),var(--b));-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:0 0 18px rgba(79,107,255,.35);letter-spacing:2px}
+nav{display:flex;gap:34px;font-size:20px}
+nav a:hover{color:var(--title)}
+
+.wrap{display:grid;grid-template-columns:230px minmax(0,1fr);gap:56px;max-width:1240px;margin:0 auto;padding:34px 36px 60px}
+
+aside .avatar{width:164px;height:164px;border-radius:50%;border:3px solid var(--line);display:grid;place-items:center;
+  background:radial-gradient(circle at 35% 30%,#4a7fa0,#16273f 70%);font:56px 'Press Start 2P',monospace;color:#dff3ff}
+aside h2{margin:20px 0 8px;font-size:23px}
+aside .bio{color:var(--muted);margin:0 0 24px}
+aside ul{list-style:none;margin:0;padding:0;display:grid;gap:14px;color:var(--muted)}
+aside li a:hover{color:var(--text)}
+
+main h1{font-size:23px;margin:0 0 18px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.filter{display:none;margin:0 0 18px;color:var(--muted)}
+.filter button{background:none;border:1px solid var(--line);color:var(--text);border-radius:6px;padding:2px 10px;margin-left:8px;cursor:pointer}
+
+article{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:28px;padding:10px 0 34px}
+article h2{margin:0;font-size:30px;line-height:1.2}
+article h2 a{color:var(--title)}
+article h2 a:hover{text-decoration:underline}
+.date{font-size:14px;margin:12px 0 6px;color:var(--text)}
+.date span{color:var(--muted)}
+article p{margin:0 0 18px;font-size:17px}
+.tags{display:flex;flex-wrap:wrap;gap:8px 26px;align-items:center;font-weight:700;font-size:14px}
+.tags button{background:none;border:0;color:inherit;font:inherit;cursor:pointer;padding:0}
+.tags button:hover{color:var(--accent)}
+
+.thumb{align-self:start;background:#060d1a;border-radius:6px;padding:14px;display:flex;align-items:center;gap:18px}
+.badge{flex:none;width:120px;height:120px;border-radius:50%;border:6px solid var(--c);display:grid;place-items:center;
+  background:radial-gradient(circle,#0d1a2e,#07101e);font:700 12px 'Press Start 2P',monospace;color:var(--c);text-align:center;padding:10px}
+.meta{flex:1;font:11px ui-monospace,Menlo,monospace;color:var(--muted)}
+.meta b{display:block;font:700 15px ui-monospace,Menlo,monospace;color:var(--text);margin-bottom:8px;text-align:center}
+.meta div{display:flex;justify-content:space-between;background:#101c30;padding:4px 8px;margin-bottom:3px}
+.meta em{font-style:normal;color:var(--c)}
+
+footer{border-top:1px solid var(--line);color:var(--muted);text-align:center;padding:22px;font-size:14px}
+
+@media (max-width:900px){
+  header{padding:14px 18px;flex-direction:column;gap:12px}
+  nav{gap:20px;font-size:17px}
+  .wrap{grid-template-columns:1fr;gap:30px;padding:24px 18px}
+  aside{display:grid;grid-template-columns:auto 1fr;gap:6px 20px;align-items:center}
+  aside .avatar{width:96px;height:96px;font-size:32px;grid-row:span 2}
+  aside ul{grid-column:1/-1;grid-auto-flow:column;grid-auto-columns:max-content;gap:18px;overflow-x:auto}
+  article{grid-template-columns:1fr}
+  .thumb{order:-1}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <a class="logo" href="#">salva</a>
+  <nav>
+    <a href="#">Inicio</a>
+    <a href="#posts">Posts</a>
+    <a href="#posts">Categorías</a>
+    <a href="#posts">Tags</a>
+    <a href="#sobre-mi">Sobre mí</a>
+  </nav>
+</header>
+
+<div class="wrap">
+  <aside id="sobre-mi">
+    <div class="avatar" aria-hidden="true">S</div>
+    <h2>salva</h2>
+    <p class="bio">DFIR · Blue Team · Jugador de HackTheBox Sherlocks</p>
+    <ul>
+      <li><a href="#">📍 España</a></li>
+      <li><a href="mailto:tu@correo.com">✉ Email</a></li>
+      <li><a href="https://github.com/TU_USUARIO">GitHub</a></li>
+      <li><a href="https://www.linkedin.com/in/TU_USUARIO">LinkedIn</a></li>
+      <li><a href="https://app.hackthebox.com/profile/TU_ID">HackTheBox</a></li>
+    </ul>
+  </aside>
+
+  <main id="posts">
+    <h1>Últimos posts</h1>
+    <p class="filter" id="filter">Filtrando por <strong id="filter-name"></strong><button id="clear">Quitar filtro</button></p>
+    <div id="list"></div>
+  </main>
+</div>
+
+<footer>© <span id="year"></span> salva · Writeups de HackTheBox Sherlocks</footer>
+
+<script>
+/* ============================================================
+   AÑADE TUS WRITEUPS AQUÍ. Un objeto por Sherlock.
+   - url: enlace al writeup (otro .html, un .md en el repo, etc.)
+   - dificultad: Very Easy | Easy | Medium | Hard | Insane
+   - os: Windows | Linux | Otro
+   ============================================================ */
+const posts = [
+  {
+    titulo: "Brutus - Sherlock",
+    fecha: "2026-10-20",
+    url: "#",
+    dificultad: "Very Easy", os: "Linux", puntos: 20,
+    resumen: "Análisis de logs de autenticación (auth.log y wtmp) de un servidor Linux tras un ataque de fuerza bruta por SSH. Reconstruimos la línea temporal: IPs atacantes, cuenta comprometida, persistencia y comandos ejecutados.",
+    tags: ["auth.log", "wtmp", "ssh", "linux"]
+  },
+  {
+    titulo: "Noxious - Sherlock",
+    fecha: "2026-10-12",
+    url: "#",
+    dificultad: "Easy", os: "Windows", puntos: 20,
+    resumen: "Captura de red con tráfico LLMNR/NBT-NS envenenado. Identificamos al atacante, la víctima y el hash NTLMv2 capturado a partir del PCAP.",
+    tags: ["pcap", "wireshark", "llmnr", "ntlm"]
+  },
+  {
+    titulo: "Unit42 - Sherlock",
+    fecha: "2026-10-05",
+    url: "#",
+    dificultad: "Very Easy", os: "Windows", puntos: 20,
+    resumen: "Análisis de eventos Sysmon de una infección con malware. Seguimos el proceso malicioso, las conexiones de red, los archivos creados y la técnica de evasión usada.",
+    tags: ["sysmon", "evtx", "windows", "malware"]
+  }
+];
+
+const colores = {"Very Easy":"#8fd14f","Easy":"#8fd14f","Medium":"#ffb82e","Hard":"#ff6b4a","Insane":"#d14fff"};
+const meses = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt = iso => { const [y,m,d] = iso.split("-").map(Number); return `${d} ${meses[m-1]} ${y}`; };
+
+const list = document.getElementById("list");
+const filter = document.getElementById("filter");
+let activo = null;
+
+function pintar(){
+  const datos = posts
+    .filter(p => !activo || p.tags.includes(activo))
+    .sort((a,b) => b.fecha.localeCompare(a.fecha));
+
+  filter.style.display = activo ? "block" : "none";
+  document.getElementById("filter-name").textContent = activo || "";
+
+  if(!datos.length){ list.innerHTML = "<p>No hay posts con ese tag.</p>"; return; }
+
+  list.innerHTML = datos.map(p => {
+    const c = colores[p.dificultad] || "#8fd14f";
+    const nombre = p.titulo.split(" - ")[0];
+    return `
+    <article>
+      <div>
+        <h2><a href="${esc(p.url)}">${esc(p.titulo)}</a></h2>
+        <div class="date">📅 ${fmt(p.fecha)} <span>· Sherlock ${esc(p.dificultad)}</span></div>
+        <p>${esc(p.resumen)}</p>
+        <div class="tags">${p.tags.map(t => `<button data-tag="${esc(t)}">${esc(t)}</button>`).join("")}</div>
+      </div>
+      <div class="thumb" style="--c:${c}">
+        <div class="badge">${esc(nombre)}</div>
+        <div class="meta">
+          <b>${esc(nombre)}</b>
+          <div><span>OS</span><em>${esc(p.os)}</em></div>
+          <div><span>Dificultad</span><em>${esc(p.dificultad)}</em></div>
+          <div><span>Puntos</span><em>${esc(p.puntos)}</em></div>
+        </div>
+      </div>
+    </article>`;
+  }).join("");
+}
+
+list.addEventListener("click", e => {
+  const b = e.target.closest("button[data-tag]");
+  if(b){ activo = b.dataset.tag; pintar(); }
+});
+document.getElementById("clear").addEventListener("click", () => { activo = null; pintar(); });
+document.getElementById("year").textContent = new Date().getFullYear();
+pintar();
+</script>
+</body>
+</html>
