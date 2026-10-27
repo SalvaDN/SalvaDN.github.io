@@ -23,11 +23,12 @@ const posts = [
     tags: ["pcap", "wireshark", "llmnr", "ntlm"]
   },
   {
-    titulo: "Unit42 - Sherlock",
-    fecha: "2026-10-05",
-    url: "retos/unit42.html",
-    dificultad: "Very Easy", os: "Windows", puntos: 20,
-    resumen: "Análisis de eventos Sysmon de una infección con malware. Seguimos el proceso malicioso, las conexiones de red, los archivos creados y la técnica de evasión usada.",
-    tags: ["sysmon", "evtx", "windows", "malware"]
+    titulo: "Mi laboratorio DFIR",
+    tipo: "Proyecto",
+    fecha: "2026-11-02",
+    url: "proyectos/laboratorio-dfir.html",
+    estado: "En curso",
+    resumen: "Montaje de un laboratorio con máquinas virtuales para practicar análisis forense.",
+    tags: ["laboratorio", "vmware", "dfir"]
   }
 ];
