@@ -30,7 +30,7 @@ main h1{font-size:23px;margin:0 0 18px;padding-bottom:14px;border-bottom:1px sol
 .filter{display:none;margin:0 0 18px;color:var(--muted)}
 .filter button{background:none;border:1px solid var(--line);color:var(--text);border-radius:6px;padding:2px 10px;margin-left:8px;cursor:pointer}
 
-article.post{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:28px;padding:10px 0 40px}
+article.post{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:28px;padding:10px 0 40px}
 article.post h2{margin:0;font-size:30px;line-height:1.2;display:flex;align-items:center;gap:14px}
 article.post h2 a{color:var(--title)}
 article.post{max-width:1100px}
