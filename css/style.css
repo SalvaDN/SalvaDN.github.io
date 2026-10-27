@@ -60,7 +60,7 @@ footer{border-top:1px solid var(--line);color:var(--muted);text-align:center;pad
 .reto h1{font-size:36px;line-height:1.2;color:var(--title);margin:18px 0 10px}
 .reto h2{font-size:25px;margin:44px 0 12px;padding-bottom:10px;border-bottom:1px solid var(--line)}
 .reto h3{font-size:19px;margin:28px 0 8px;color:var(--accent)}
-.reto p,.reto li{font-size:17px}
+.reto p,.reto li{font-size:17px;text-align:justify;hyphens:auto}
 .reto a.ext{color:var(--title);text-decoration:underline}
 .ficha{display:flex;flex-wrap:wrap;gap:8px 28px;margin:16px 0 24px;padding:14px 18px;background:var(--panel);border:1px solid var(--line);border-radius:6px;font-size:15px;color:var(--muted)}
 .ficha strong{color:var(--text)}
@@ -76,6 +76,11 @@ figcaption{color:var(--muted);font-size:14px;margin-top:6px}
 table{border-collapse:collapse;width:100%;display:block;overflow-x:auto;font-size:15px}
 th,td{border:1px solid var(--line);padding:8px 12px;text-align:left}
 th{background:var(--panel)}
+
+.pager{display:flex;justify-content:center;align-items:center;gap:22px;padding:10px 0 20px;color:var(--muted)}
+.pager button{background:var(--panel);border:1px solid var(--line);color:var(--text);padding:8px 16px;border-radius:6px;font:inherit;cursor:pointer}
+.pager button:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+.pager button:disabled{opacity:.35;cursor:default}
 
 @media (max-width:900px){
   header{padding:14px 18px;flex-direction:column;gap:12px}
