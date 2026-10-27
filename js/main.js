@@ -20,7 +20,7 @@ const filter = document.getElementById("filter");
 const pager = document.getElementById("paginacion");
 
 /* Filtro por tipo desde el menú: index.html?tipo=Proyecto, ?tipo=Estudio, ?tipo=Sherlock */
-const NOMBRES = {"Retos":"Sherlocks","Proyecto":"Proyectos","Estudio":"Estudios"};
+const NOMBRES = {"Retos":"Retos","Proyecto":"Proyectos","Estudio":"Estudios"};
 const tipoPagina = new URLSearchParams(location.search).get("tipo");
 if(tipoPagina){
   const h = document.querySelector("#posts h1");
