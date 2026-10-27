@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- 1. Cambia el título -->
+<title>Baggage - Sherlock · Portfolio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<!-- Las rutas llevan ../ porque esta página está dentro de retos/ -->
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<header>
+  <a class="logo" href="../index.html">PortFolio</a>
+  <nav>
+    <a href="../index.html">Inicio</a>
+    <a href="../index.html#posts">Posts</a>
+    <a href="../index.html#posts">Categorías</a>
+    <a href="../index.html#posts">Tags</a>
+    <a href="../index.html#sobre-mi">Sobre mí</a>
+  </nav>
+</header>
+
+<main class="reto">
+  <a class="volver" href="../index.html#posts">← Volver a los posts</a>
+
+  <!-- 2. Título y ficha del reto -->
+  <h1>Baggage - Sherlock</h1>
+  <div class="ficha">
+    <span><strong>Fecha:</strong> 27 oct 2026</span>
+    <span><strong>Dificultad:</strong> Very Easy</span>
+    <span><strong>Categoría:</strong> DFIR</span>
+    <span><strong>Sistema:</strong> Windows</span>
+    <span><strong>Plataforma:</strong> HackTheBox</span>
+  </div>
+
+  <h2>Resumen</h2>
+  <p>Análisis de artefactos Shellbags en un entorno Windows comprometido para rastrear la navegación por el sistema de archivos realizada por un atacante. A través del parseo de los registros, se reconstruyen las acciones de búsqueda de información sensible, acceso a recursos compartidos de red y empaquetado de datos para su posterior exfiltración.</p>
+
+  <h2>Escenario</h2>
+  <p>Este laboratorio proporciona la oportunidad de analizar artefactos Shellbags. Los Shellbags permiten identificar la navegación por carpetas de un usuario específico, el acceso a recursos compartidos en red y el recorrido interno por archivos comprimidos. Esta información es fundamental durante una investigación DFIR para reconstruir la recolección, el staging y los intentos de exfiltración de datos.</p>
+
+  <h2>Artefactos y herramientas</h2>
+  <ul>
+    <li>Artefactos: Registros de Shellbags de Windows (<code>NTUSER.DAT</code> / <code>UsrClass.dat</code>) del usuario <code>steve</code>.</li>
+    <li>Herramientas: <code>SBECmd.exe</code> (ShellBags Explorer Command Line de Eric Zimmerman), visores/editores CSV o Excel.</li>
+  </ul>
+
+  <h2>Análisis</h2>
+
+  <h3>Tarea 1</h3>
+  <div class="pregunta"><b>Pregunta:</b> What was the name of the archive file downloaded by the compromised account?</div>
+  <p>Parseamos los Shellbags de la cuenta comprometida utilizando la herramienta SBECmd para exportar los datos a formato CSV y analizamos los accesos a la carpeta de descargas u otras rutas locales.</p>
+  <pre><code>SBECmd.exe -d "C:\Users\VMINDI\Desktop\Baggage\Baggage\C\Users\steve\AppData\Local\Microsoft\Windows" --csv . --csvf shellbags.csv</code></pre>
+  <!--
+  <figure>
+    <img src="../img/Pasted image 20260915084126.png" alt="Ejecución de SBECmd">
+    <figcaption>Parseo de artefacos con SBECmd.</figcaption>
+  </figure>
+  -->
+  <p class="respuesta"><b>Respuesta:</b> <code>1.zip</code></p>
+
+  <h3>Tarea 2</h3>
+  <div class="pregunta"><b>Pregunta:</b> What was the name of the utility brought in by the attacker to search for sensitive data?</div>
+  <p>Inspeccionando las carpetas o utilidades desempaquetadas y accedidas por el atacante en la estructura del sistema de archivos parseada por Shellbags, identificamos la herramienta de búsqueda instalada.</p>
+  <!--
+  <figure>
+    <img src="../img/Pasted image 20260915084632.png" alt="Identificación de Everything">
+    <figcaption>Utilidad Everything localizada en los registros.</figcaption>
+  </figure>
+  -->
+  <p class="respuesta"><b>Respuesta:</b> <code>Everything 1.4.1.1028</code></p>
+
+  <h3>Tarea 3</h3>
+  <div class="pregunta"><b>Pregunta:</b> The attacker navigated the filesystem and found sensitive files used by the victim in their day-to-day work. When was the VPN folder accessed by the attacker?</div>
+  <p>Filtramos el resultado CSV de Shellbags buscando la ruta o carpeta relacionada con VPN y verificamos las marcas de tiempo de acceso registrado.</p>
+  <!--
+  <figure>
+    <img src="../img/Pasted image 20260915085539.png" alt="Acceso a carpeta VPN">
+    <figcaption>Marca temporal del acceso a la carpeta VPN.</figcaption>
+  </figure>
+  -->
+  <p class="respuesta"><b>Respuesta:</b> <code>2025-09-03 07:31:05</code></p>
+
+  <h3>Tarea 4</h3>
+  <div class="pregunta"><b>Pregunta:</b> What was the name of the directory containing the victim's passwords?</div>
+  <p>Revisando la estructura de directorios por los que navegó el atacante, identificamos el nombre de la carpeta donde se almacenaba información de credenciales.</p>
+  <!--
+  <figure>
+    <img src="../img/Pasted image 20260915085756.png" alt="Carpeta de contraseñas">
+    <figcaption>Directorio con contraseñas del usuario.</figcaption>
+  </figure>
+  -->
+  <p class="respuesta"><b>Respuesta:</b> <code>OnePassword MasterPass</code></p>
+
+  <h3>Tarea 5</h3>
+  <div class="pregunta"><b>Pregunta:</b> The attacker also accessed a network share to pillage network data. What is the UNC path?</div>
+  <p>Los Shellbags almacenan de forma precisa la navegación hacia recursos compartidos en red. Filtramos por rutas tipo UNC (Remote Access) en el informe generado.</p>
+  <!--
+  <figure>
+    <img src="../img/Pasted image 20260915085959.png" alt="Ruta UNC en Shellbags">
+    <figcaption>Ruta del recurso compartido en red.</figcaption>
+  </figure>
+  -->
+  <p class="respuesta"><b>Respuesta:</b> <code>\\Prod-ns-2\prodshare</code></p>
+
+  <h3>Tarea 6</h3>
+  <div class="pregunta"><b>Pregunta:</b> When is the dam construction planned?</div>
+  <p>Al inspeccionar el contenido o nombres de los archivos presentes en el recurso de red accedido por el atacante, extraemos el año de planificación del proyecto.</p>
+  <!--
+  <figure>
+    <img src="../img/Pasted image 20260915090147.png" alt="Detalles de construcción de la presa">
+    <figcaption>Información del archivo sobre la construcción.</figcaption>
+  </figure>
+  -->
+  <p class="respuesta"><b>Respuesta:</b> <code>2027</code></p>
+
+  <h3>Tarea 7</h3>
+  <div class="pregunta"><b>Pregunta:</b> What was the name of the archive file present on the network share?</div>
+  <p>Dentro del recurso compartido de red <code>\\Prod-ns-2\prodshare</code>, localizamos el nombre completo del archivo comprimido al que tuvo acceso el atacante.</p>
+  <!--
+  <figure>
+    <img src="../img/Pasted image 20260915090604.png" alt="Archivo comprimido en el recurso compartido">
+    <figcaption>Nombre del archivo .zip en la red.</figcaption>
+  </figure>
+  -->
+  <p class="respuesta"><b>Respuesta:</b> <code>Dam Construction Engineer Plans.zip</code></p>
+
+  <h3>Tarea 8</h3>
+  <div class="pregunta"><b>Pregunta:</b> When was the archive file from the network share accessed?</div>
+  <p>Consultamos la marca temporal exacta en la que se registró el primer o último acceso a dicho archivo comprimido dentro del recurso compartido de red.</p>
+  <!--
+  <figure>
+    <img src="../img/Pasted image 20260915102450.png" alt="Timestamp de acceso al zip">
+    <figcaption>Registro de tiempo de interacción con el archivo.</figcaption>
+  </figure>
+  -->
+  <p class="respuesta"><b>Respuesta:</b> <code>2025-09-03 07:33:00</code></p>
+
+  <h3>Tarea 9</h3>
+  <div class="pregunta"><b>Pregunta:</b> The attacker created a staging folder to prepare for collection and exfiltration. What is the full path of the staging folder?</div>
+  <p>Analizando la creación y navegación por carpetas locales del usuario <code>steve</code>, detectamos una carpeta sospechosa creada para agrupar (staging) los archivos recolectados.</p>
+  <!--
+  <figure>
+    <img src="../img/Pasted image 20260915102119.png" alt="Carpeta de Staging">
+    <figcaption>Ruta completa del directorio de staging.</figcaption>
+  </figure>
+  -->
+  <p class="respuesta"><b>Respuesta:</b> <code>C:\Users\steve\Pictures\a</code></p>
+
+  <h3>Tarea 10</h3>
+  <div class="pregunta"><b>Pregunta:</b> The attacker compressed the staging folder to prepare the data for exfiltration. When was the exfiltration archive file accessed?</div>
+  <p>Localizamos el evento de interacción (<i>Last Interacted</i>) con el archivo comprimido final ubicado en la zona de staging previo a su exfiltración.</p>
+  <!--
+  <figure>
+    <img src="../img/Pasted image 20260915102231.png" alt="Last Interacted exfiltration archive">
+    <figcaption>Marca temporal de última interacción con el archivo de exfiltración.</figcaption>
+  </figure>
+  -->
+  <p class="respuesta"><b>Respuesta:</b> <code>2025-09-03 07:34:30</code></p>
+
+  <h2>Línea temporal</h2>
+  <table>
+    <tr><th>Hora (UTC)</th><th>Evento</th><th>Fuente</th></tr>
+    <tr><td>2025-09-03 07:31:05</td><td>Acceso a la carpeta VPN del usuario</td><td>Shellbags (UsrClass.dat / NTUSER.DAT)</td></tr>
+    <tr><td>2025-09-03 07:33:00</td><td>Acceso al archivo <code>Dam Construction Engineer Plans.zip</code> en el recurso compartido <code>\\Prod-ns-2\prodshare</code></td><td>Shellbags (Zip Folder / Remote UNC)</td></tr>
+    <tr><td>2025-09-03 07:34:30</td><td>Última interacción con el archivo empaquetado listo para exfiltrar en la ruta staging <code>C:\Users\steve\Pictures\a</code></td><td>Shellbags (Folder Interaction)</td></tr>
+  </table>
+
+  <h2>Indicadores de compromiso (IOC)</h2>
+  <ul>
+    <li><strong>Herramientas:</strong> <code>Everything 1.4.1.1028</code></li>
+    <li><strong>Ruta compartida (UNC):</strong> <code>\\Prod-ns-2\prodshare</code></li>
+    <li><strong>Directorio Staging:</strong> <code>C:\Users\steve\Pictures\a</code></li>
+    <li><strong>Archivos de Interés:</strong> <code>1.zip</code>, <code>Dam Construction Engineer Plans.zip</code></li>
+  </ul>
+
+  <h2>Conclusiones</h2>
+  <p>Este reto demuestra el gran valor forense de los artefactos Shellbags en Windows para reconstruir la actividad de un atacante tras la vulneración de una cuenta. A través del análisis del registro, se logró determinar el patrón completo de recolección de información (acceso a credenciales, proyectos y recursos de red), el directorio de preparación (staging) y el empaquetado para exfiltración, permitiendo establecer una línea temporal precisa de los eventos.</p>
+</main>
+
+<footer>© <span id="year"></span> salva · Writeups de HackTheBox Sherlocks</footer>
+<script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>
