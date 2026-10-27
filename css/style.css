@@ -33,6 +33,7 @@ main h1{font-size:23px;margin:0 0 18px;padding-bottom:14px;border-bottom:1px sol
 article.post{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:28px;padding:10px 0 40px}
 article.post h2{margin:0;font-size:30px;line-height:1.2;display:flex;align-items:center;gap:14px}
 article.post h2 a{color:var(--title)}
+article.post{max-width:1100px}
 article.post h2 a:hover{text-decoration:underline}
 .cube{flex:none;width:36px;height:36px;border-radius:50%;background:#16241a;color:var(--accent);display:grid;place-items:center;font-size:18px}
 .date{font-size:14px;margin:12px 0 6px}
