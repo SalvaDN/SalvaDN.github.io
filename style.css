@@ -1,0 +1,90 @@
+:root{
+  --bg:#050b17; --panel:#0a1322; --line:#1b2a40; --text:#e8edf5; --muted:#9fb0c6;
+  --title:#5fb3c9; --accent:#8fd14f; --a:#7a8f3a; --b:#4b5320;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 Inter,system-ui,sans-serif}
+a{color:inherit;text-decoration:none}
+a:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+svg.i{width:1em;height:1em;fill:currentColor;fill-rule:evenodd;vertical-align:-.125em}
+
+/* Cabecera */
+header{display:flex;align-items:center;justify-content:space-between;padding:18px 36px;border-bottom:1px solid var(--line)}
+.logo{font:26px 'Press Start 2P',monospace;background:linear-gradient(180deg,var(--a),var(--b));-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 10px rgba(122,143,58,.35));letter-spacing:2px}
+nav{display:flex;gap:34px;font-size:20px}
+nav a:hover{color:var(--title)}
+
+/* Portada */
+.wrap{display:grid;grid-template-columns:230px minmax(0,1fr);gap:56px;max-width:1240px;margin:0 auto;padding:34px 36px 60px}
+aside .avatar{position:relative;overflow:hidden;width:164px;height:164px;border-radius:50%;border:3px solid var(--line);display:grid;place-items:center;
+  background:radial-gradient(circle at 35% 30%,#6f8a4a,#16273f 70%);font:56px 'Press Start 2P',monospace;color:#eaf5d8}
+aside .avatar img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+aside h2{margin:20px 0 8px;font-size:23px}
+aside .bio{color:var(--muted);margin:0 0 24px;font-size:15px}
+aside ul{list-style:none;margin:0;padding:0;display:grid;gap:14px;color:var(--text)}
+aside li a{display:flex;align-items:center;gap:10px}
+aside li a:hover{color:var(--accent)}
+
+main h1{font-size:23px;margin:0 0 18px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.filter{display:none;margin:0 0 18px;color:var(--muted)}
+.filter button{background:none;border:1px solid var(--line);color:var(--text);border-radius:6px;padding:2px 10px;margin-left:8px;cursor:pointer}
+
+article.post{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:28px;padding:10px 0 40px}
+article.post h2{margin:0;font-size:30px;line-height:1.2;display:flex;align-items:center;gap:14px}
+article.post h2 a{color:var(--title)}
+article.post h2 a:hover{text-decoration:underline}
+.cube{flex:none;width:36px;height:36px;border-radius:50%;background:#16241a;color:var(--accent);display:grid;place-items:center;font-size:18px}
+.date{font-size:14px;margin:12px 0 6px}
+.date span{color:var(--muted)}
+article.post p{margin:0 0 20px;font-size:17px}
+.tags{display:flex;flex-wrap:wrap;gap:8px 26px;align-items:center;font-weight:700;font-size:14px}
+.tags .ico{font-size:28px;margin-right:-4px}
+.tags button{background:none;border:0;color:inherit;font:inherit;cursor:pointer;padding:0}
+.tags button:hover{color:var(--accent)}
+
+.thumb{align-self:start;background:#060d1a;padding:14px;display:flex;align-items:center;gap:18px}
+.badge{flex:none;width:120px;height:120px;border-radius:50%;border:6px solid var(--c);display:grid;place-items:center;
+  background:radial-gradient(circle,#0d1a2e,#07101e);font:700 12px 'Press Start 2P',monospace;color:var(--c);text-align:center;padding:10px;word-break:break-word}
+.meta{flex:1;font:11px ui-monospace,Menlo,monospace;color:var(--muted)}
+.meta b{display:block;font:700 15px ui-monospace,Menlo,monospace;color:var(--text);margin-bottom:8px;text-align:center}
+.meta div{display:flex;justify-content:space-between;background:#101c30;padding:4px 8px;margin-bottom:3px}
+.meta em{font-style:normal;color:var(--c)}
+
+footer{border-top:1px solid var(--line);color:var(--muted);text-align:center;padding:22px;font-size:14px}
+
+/* Página de reto (retos/*.html) */
+.reto{max-width:860px;margin:0 auto;padding:34px 24px 60px}
+.reto .volver{color:var(--muted);font-size:15px}
+.reto .volver:hover{color:var(--accent)}
+.reto h1{font-size:36px;line-height:1.2;color:var(--title);margin:18px 0 10px}
+.reto h2{font-size:25px;margin:44px 0 12px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.reto h3{font-size:19px;margin:28px 0 8px;color:var(--accent)}
+.reto p,.reto li{font-size:17px}
+.reto a.ext{color:var(--title);text-decoration:underline}
+.ficha{display:flex;flex-wrap:wrap;gap:8px 28px;margin:16px 0 24px;padding:14px 18px;background:var(--panel);border:1px solid var(--line);border-radius:6px;font-size:15px;color:var(--muted)}
+.ficha strong{color:var(--text)}
+pre{background:#030812;border:1px solid var(--line);border-radius:6px;padding:14px 16px;overflow-x:auto;font:14px/1.5 ui-monospace,Menlo,Consolas,monospace}
+code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.92em;background:#0d1a2e;padding:1px 6px;border-radius:4px}
+pre code{background:none;padding:0}
+figure{margin:22px 0}
+figure img{max-width:100%;border:1px solid var(--line);border-radius:6px;display:block}
+figcaption{color:var(--muted);font-size:14px;margin-top:6px}
+.pregunta{border-left:3px solid var(--a);background:var(--panel);padding:12px 16px;border-radius:0 6px 6px 0;margin:18px 0 8px}
+.pregunta b{color:var(--accent)}
+.respuesta{margin:0 0 20px;padding-left:19px;color:var(--muted)}
+table{border-collapse:collapse;width:100%;display:block;overflow-x:auto;font-size:15px}
+th,td{border:1px solid var(--line);padding:8px 12px;text-align:left}
+th{background:var(--panel)}
+
+@media (max-width:900px){
+  header{padding:14px 18px;flex-direction:column;gap:12px}
+  nav{gap:20px;font-size:17px}
+  .wrap{grid-template-columns:1fr;gap:30px;padding:24px 18px}
+  aside{display:grid;grid-template-columns:auto 1fr;gap:6px 20px;align-items:center}
+  aside .avatar{width:96px;height:96px;font-size:32px;grid-row:span 2}
+  aside ul{grid-column:1/-1;grid-auto-flow:column;grid-auto-columns:max-content;gap:18px;overflow-x:auto}
+  article.post{grid-template-columns:1fr}
+  .thumb{order:-1}
+  article.post h2{font-size:24px}
+}
