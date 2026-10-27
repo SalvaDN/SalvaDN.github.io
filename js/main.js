@@ -31,7 +31,7 @@ function pintar(){
 
   if(!datos.length){
     list.innerHTML = "<p>No hay posts con ese tag.</p>";
-    pager.innerHTML = "";
+    if(pager) pager.innerHTML = "";
     return;
   }
 
@@ -58,10 +58,12 @@ function pintar(){
     </article>`;
   }).join("");
 
-  pager.innerHTML = total > 1 ? `
-    <button data-p="${pagina - 1}" ${pagina === 1 ? "disabled" : ""}>← Anteriores</button>
-    <span>Página ${pagina} de ${total}</span>
-    <button data-p="${pagina + 1}" ${pagina === total ? "disabled" : ""}>Siguientes →</button>` : "";
+  if(pager){
+    pager.innerHTML = total > 1 ? `
+      <button data-p="${pagina - 1}" ${pagina === 1 ? "disabled" : ""}>← Anteriores</button>
+      <span>Página ${pagina} de ${total}</span>
+      <button data-p="${pagina + 1}" ${pagina === total ? "disabled" : ""}>Siguientes →</button>` : "";
+  }
 }
 
 list.addEventListener("click", e => {
@@ -69,14 +71,16 @@ list.addEventListener("click", e => {
   if(b){ activo = b.dataset.tag; pagina = 1; pintar(); }
 });
 document.getElementById("clear").addEventListener("click", () => { activo = null; pagina = 1; pintar(); });
-pager.addEventListener("click", e => {
-  const b = e.target.closest("button[data-p]");
-  if(b && !b.disabled){
-    pagina = Number(b.dataset.p);
-    pintar();
-    document.getElementById("posts").scrollIntoView();
-  }
-});
+if(pager){
+  pager.addEventListener("click", e => {
+    const b = e.target.closest("button[data-p]");
+    if(b && !b.disabled){
+      pagina = Number(b.dataset.p);
+      pintar();
+      document.getElementById("posts").scrollIntoView();
+    }
+  });
+}
 
 document.getElementById("year").textContent = new Date().getFullYear();
 pintar();
