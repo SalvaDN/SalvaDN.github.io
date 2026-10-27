@@ -13,6 +13,10 @@ const list = document.getElementById("list");
 const filter = document.getElementById("filter");
 let activo = null;
 
+const POR_PAGINA = 5;
+let pagina = 1;
+const pager = document.getElementById("paginacion");
+
 function pintar(){
   const datos = posts
     .filter(p => !activo || p.tags.includes(activo))
