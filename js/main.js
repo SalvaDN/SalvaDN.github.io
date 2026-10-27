@@ -1,5 +1,5 @@
 const colores = {"Very Easy":"#8fd14f","Easy":"#8fd14f","Medium":"#ffb82e","Hard":"#ff6b4a","Insane":"#d14fff"};
-const coloresTipo = {"Retos":"#ffb82e","Proyecto":"#4fa3ff","Estudio":"#ffb82e"};
+const coloresTipo = {"Proyecto":"#4fa3ff","Estudio":"#ffb82e"};
 const meses = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fmt = iso => { const [y,m,d] = iso.split("-").map(Number); return `${d} ${meses[m-1]} ${y}`; };
@@ -19,15 +19,13 @@ const list = document.getElementById("list");
 const filter = document.getElementById("filter");
 const pager = document.getElementById("paginacion");
 
-// Normalizamos los posts para que cualquier "Sherlock" pase a ser tratado como "Retos"
-if (typeof posts !== "undefined" && Array.isArray(posts)) {
-  posts.forEach(p => {
-    if (!p.tipo || p.tipo === "Sherlock") p.tipo = "Retos";
-  });
-}
-
-const NOMBRES = {"Retos":"Retos","Proyecto":"Proyectos","Estudio":"Estudios"};
-const tipoPagina = new URLSearchParams(location.search).get("tipo");
+/* Filtro por tipo desde el menú: index.html?tipo=Reto, ?tipo=Proyecto, ?tipo=Estudio */
+const NOMBRES = {"Reto":"Retos","Proyecto":"Proyectos","Estudio":"Estudios"};
+/* Acepta singular, plural y el antiguo "Sherlock": todos significan lo mismo */
+const ALIAS = {"Sherlock":"Reto","Sherlocks":"Reto","Retos":"Reto","Proyectos":"Proyecto","Estudios":"Estudio"};
+const normTipo = t => !t ? "Reto" : (ALIAS[t] || t);
+const tipoParam = new URLSearchParams(location.search).get("tipo");
+const tipoPagina = tipoParam ? normTipo(tipoParam) : null;
 if(tipoPagina){
   const h = document.querySelector("#posts h1");
   if(h) h.textContent = NOMBRES[tipoPagina] || tipoPagina;
@@ -39,7 +37,7 @@ function pintar(){
     return;
   }
   const todos = posts
-    .filter(p => !tipoPagina || p.tipo === tipoPagina)
+    .filter(p => !tipoPagina || normTipo(p.tipo) === tipoPagina)
     .filter(p => !activo || p.tags.includes(activo))
     .sort((a,b) => b.fecha.localeCompare(a.fecha));
 
@@ -59,16 +57,15 @@ function pintar(){
   }
 
   list.innerHTML = datos.map(p => {
-    const tipo = p.tipo || "Retos";
-    const esReto = tipo === "Retos";
+    const tipo = normTipo(p.tipo);
+    const esReto = tipo === "Reto";
     const c = esReto ? (colores[p.dificultad] || "#8fd14f") : (coloresTipo[tipo] || "#9fb0c6");
     const nombre = esReto ? p.titulo.split(" - ")[0] : tipo;
-    const sub = esReto ? p.dificultad : tipo;
+    const sub = esReto ? ([p.plataforma, p.dificultad].filter(Boolean).join(" · ") || "Reto") : tipo;
+    const fila = (etq, val) => (val !== undefined && val !== "") ? `<div><span>${etq}</span><em>${esc(val)}</em></div>` : "";
     const filas = esReto
-      ? `<div><span>OS:</span><em>${esc(p.os)}</em></div>
-          <div><span>Dificultad:</span><em>${esc(p.dificultad)}</em></div>
-          <div><span>Puntos:</span><em>${esc(p.puntos)}</em></div>`
-      : `<div><span>Tipo:</span><em>${esc(tipo)}</em></div>` + (p.estado ? `<div><span>Estado:</span><em>${esc(p.estado)}</em></div>` : "");
+      ? fila("Plataforma:", p.plataforma) + fila("OS:", p.os) + fila("Dificultad:", p.dificultad) + fila("Puntos:", p.puntos)
+      : fila("Tipo:", tipo) + fila("Estado:", p.estado);
     const miniatura = p.imagen
       ? `<img src="${esc(p.imagen)}" alt="${esc(p.titulo)}" style="width:100%;display:block">`
       : `${p.icono ? `<div class="badge img"><img src="${esc(p.icono)}" alt=""></div>` : `<div class="badge">${esc(nombre)}</div>`}
