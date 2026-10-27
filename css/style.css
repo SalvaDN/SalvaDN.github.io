@@ -12,8 +12,15 @@ svg.i{width:1em;height:1em;fill:currentColor;fill-rule:evenodd;vertical-align:-.
 /* Cabecera */
 header{display:flex;align-items:center;justify-content:space-between;padding:18px 36px;border-bottom:1px solid var(--line)}
 .logo{font:26px 'Press Start 2P',monospace;background:linear-gradient(180deg,var(--a),var(--b));-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 10px rgba(122,143,58,.35));letter-spacing:2px}
-nav{display:flex;gap:34px;font-size:20px}
+nav{display:flex;gap:34px;font-size:20px;align-items:center}
 nav a:hover{color:var(--title)}
+
+/* Menú desplegable de Categorías */
+.dropdown{position:relative;display:inline-block}
+.dropdown-content{display:none;position:absolute;top:100%;left:0;background:var(--panel);min-width:150px;border:1px solid var(--line);border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,0.5);z-index:99;padding:8px 0}
+.dropdown-content a{display:block;padding:8px 16px;font-size:17px;color:var(--text)}
+.dropdown-content a:hover{background:var(--line);color:var(--title)}
+.dropdown:hover .dropdown-content{display:block}
 
 /* Portada */
 .wrap{display:grid;grid-template-columns:230px minmax(0,1fr);gap:56px;max-width:none;margin:0;padding:34px 36px 60px}
