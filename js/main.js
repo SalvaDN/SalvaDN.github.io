@@ -1,5 +1,5 @@
 const colores = {"Very Easy":"#8fd14f","Easy":"#8fd14f","Medium":"#ffb82e","Hard":"#ff6b4a","Insane":"#d14fff"};
-const coloresTipo = {"Proyecto":"#4fa3ff","Estudio":"#ffb82e"};
+const coloresTipo = {"Retos":"#ffb82e","Proyecto":"#4fa3ff","Estudio":"#ffb82e"};
 const meses = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fmt = iso => { const [y,m,d] = iso.split("-").map(Number); return `${d} ${meses[m-1]} ${y}`; };
@@ -19,7 +19,13 @@ const list = document.getElementById("list");
 const filter = document.getElementById("filter");
 const pager = document.getElementById("paginacion");
 
-/* Filtro por tipo desde el menú: index.html?tipo=Proyecto, ?tipo=Estudio, ?tipo=Sherlock */
+// Normalizamos los posts para que cualquier "Sherlock" pase a ser tratado como "Retos"
+if (typeof posts !== "undefined" && Array.isArray(posts)) {
+  posts.forEach(p => {
+    if (!p.tipo || p.tipo === "Sherlock") p.tipo = "Retos";
+  });
+}
+
 const NOMBRES = {"Retos":"Retos","Proyecto":"Proyectos","Estudio":"Estudios"};
 const tipoPagina = new URLSearchParams(location.search).get("tipo");
 if(tipoPagina){
@@ -33,7 +39,7 @@ function pintar(){
     return;
   }
   const todos = posts
-    .filter(p => !tipoPagina || (p.tipo || "Retos") === tipoPagina)
+    .filter(p => !tipoPagina || p.tipo === tipoPagina)
     .filter(p => !activo || p.tags.includes(activo))
     .sort((a,b) => b.fecha.localeCompare(a.fecha));
 
@@ -53,12 +59,12 @@ function pintar(){
   }
 
   list.innerHTML = datos.map(p => {
-    const tipo = p.tipo || "Sherlock";
-    const esSh = tipo === "Sherlock";
-    const c = esSh ? (colores[p.dificultad] || "#8fd14f") : (coloresTipo[tipo] || "#9fb0c6");
-    const nombre = esSh ? p.titulo.split(" - ")[0] : tipo;
-    const sub = esSh ? p.dificultad : tipo;
-    const filas = esSh
+    const tipo = p.tipo || "Retos";
+    const esReto = tipo === "Retos";
+    const c = esReto ? (colores[p.dificultad] || "#8fd14f") : (coloresTipo[tipo] || "#9fb0c6");
+    const nombre = esReto ? p.titulo.split(" - ")[0] : tipo;
+    const sub = esReto ? p.dificultad : tipo;
+    const filas = esReto
       ? `<div><span>OS:</span><em>${esc(p.os)}</em></div>
           <div><span>Dificultad:</span><em>${esc(p.dificultad)}</em></div>
           <div><span>Puntos:</span><em>${esc(p.puntos)}</em></div>`
@@ -66,11 +72,11 @@ function pintar(){
     const miniatura = p.imagen
       ? `<img src="${esc(p.imagen)}" alt="${esc(p.titulo)}" style="width:100%;display:block">`
       : `${p.icono ? `<div class="badge img"><img src="${esc(p.icono)}" alt=""></div>` : `<div class="badge">${esc(nombre)}</div>`}
-        <div class="meta"><b>${esc(esSh ? nombre : p.titulo)}</b>${filas}</div>`;
+        <div class="meta"><b>${esc(esReto ? nombre : p.titulo)}</b>${filas}</div>`;
     return `
     <article class="post">
       <div>
-        <h2><a href="${esc(p.url)}">${esc(p.titulo)}</a><span class="cube">${esSh ? ICON.cube : ICON.doc}</span></h2>
+        <h2><a href="${esc(p.url)}">${esc(p.titulo)}</a><span class="cube">${esReto ? ICON.cube : ICON.doc}</span></h2>
         <div class="date">${ICON.cal} ${fmt(p.fecha)} <span>· ${esc(sub)}</span></div>
         <p>${esc(p.resumen)}</p>
         <div class="tags"><span class="ico">${ICON.tag}</span>${p.tags.map(t => `<button data-tag="${esc(t)}">${esc(t)}</button>`).join("")}</div>
