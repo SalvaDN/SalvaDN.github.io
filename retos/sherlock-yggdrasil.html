@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Yggdrasil - Sherlock · Portfolio</title>
+<!-- Metadatos requeridos por py/build-posts.py -->
+<meta name="post:titulo" content="Yggdrasil - Sherlock">
+<meta name="post:fecha" content="2026-04-07">
+<meta name="post:resumen" content="Análisis forense completo de un incidente en Linux (Ubuntu) donde se investiga una cadena de ataque que incluye acceso inicial mediante script troyanizado, escalada de privilegios por telnetd (CVE-2026-24061), staging de datos y mecanismos de persistencia.">
+<meta name="post:dificultad" content="Hard">
+<meta name="post:os" content="Linux">
+<meta name="post:tags" content="dfir,linux,privilege-escalation,persistence,cve,htb">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<!-- Las rutas llevan ../ porque esta página está dentro de retos/ -->
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<header>
+  <a class="logo" href="../index.html">PortFolio</a>
+  <nav>
+    <a href="../index.html">Inicio</a>
+    <a href="../index.html#posts">Posts</a>
+    <a href="../index.html#posts">Categorías</a>
+    <a href="../index.html#posts">Tags</a>
+    <a href="../index.html#sobre-mi">Sobre mí</a>
+  </nav>
+</header>
+
+<main class="reto">
+  <a class="volver" href="../index.html#posts">← Volver a los posts</a>
+
+  <!-- Título y ficha del reto -->
+  <h1>Yggdrasil - Sherlock</h1>
+  <div class="ficha">
+    <span><strong>Fecha:</strong> 07 abr 2026</span>
+    <span><strong>Dificultad:</strong> Hard</span>
+    <span><strong>Categoría:</strong> DFIR</span>
+    <span><strong>Sistema:</strong> Linux</span>
+    <span><strong>Plataforma:</strong> HackTheBox</span>
+  </div>
+
+  <h2>Resumen</h2>
+  <p>Investigación forense integral de una intrusión en una máquina Ubuntu asignada al equipo de desarrollo. Se reconstruye la cadena de ataque completa: desde el acceso inicial a través de un binario camuflado en un proyecto, la posterior explotación de un servicio vulnerable (telnetd) para obtener privilegios de root, el empaquetado y exfiltración de información sensible, hasta la implementación de persistencia sigilosa.</p>
+
+  <h2>Escenario</h2>
+  <p>Se detectó una conexión saliente no autorizada en un servidor Ubuntu del equipo de desarrollo, lo que motivó su aislamiento inmediato para triaje. Nuestro objetivo como analistas DFIR es determinar el vector de entrada, los artefactos ejecutados, el alcance de la brecha y los mecanismos de persistencia introducidos por el atacante.</p>
+
+  <h2>Artefactos y herramientas</h2>
+  <ul>
+    <li>Artefactos: Registros del sistema (<code>auth.log</code>, <code>kmsg</code>), base de datos Tracker3 (<code>meta.db</code>), <code>bodyfile.txt</code>, historiales de comandos (<code>bash_history</code>) e informes de la herramienta UAC (Unix-Like Artifact Collector).</li>
+    <li>Herramientas: Visores de bases de datos SQLite, análisis de líneas temporales (bodyfiles), utilidades de red y herramientas de triaje forense en Linux.</li>
+  </ul>
+
+  <h2>Análisis</h2>
+
+  <h3>Tarea 1</h3>
+  <div class="pregunta"><b>Pregunta:</b> What is the PID of the malicious process that granted the attacker access to the system?</div>
+  <p>A través de la revisión inicial de los registros de procesos y conexiones, identificamos el PID del proceso malicioso inicial.</p>
+  <figure>
+    <img src="img/Pasted image 20260915160528.png" alt="PID del proceso malicioso">
+    <figcaption>Identificación del PID del proceso en ejecución.</figcaption>
+  </figure>
+  <p class="respuesta"><b>Respuesta:</b> <code>5241</code></p>
+
+  <h3>Tarea 2</h3>
+  <div class="pregunta"><b>Pregunta:</b> What is the full path of the previous malicious process on the system?</div>
+  <p>Localizamos la ruta exacta desde donde se lanzó el binario o script que dio acceso al atacante dentro de la estructura del proyecto del usuario.</p>
+  <figure>
+    <img src="img/Pasted image 20260915183939.png" alt="Ruta del proceso malicioso">
+    <figcaption>Ubicación del binario en la estructura de directorios.</figcaption>
+  </figure>
+  <p class="respuesta"><b>Respuesta:</b> <code>/home/irek/Documents/mcp-connector-hub/vendor/bin/.cache/update</code></p>
+
+  <h3>Tarea 3</h3>
+  <div class="pregunta"><b>Pregunta:</b> What is the IP address and port number to which the attacker connected?</div>
+  <p>Revisando los artefactos de red (como los volcados de conexiones <code>lsof</code>), extraemos la dirección IP externa y el puerto de destino del servidor de comando y control (C2).</p>
+  <figure>
+    <img src="img/Pasted image 20260915185235.png" alt="Conexión C2">
+    <figcaption>Extracción de IP y puerto de conexión del atacante.</figcaption>
+  </figure>
+  <p class="respuesta"><b>Respuesta:</b> <code>172.168.40.101:1337</code></p>
+
+  <h3>Tarea 4</h3>
+  <div class="pregunta"><b>Pregunta:</b> After gaining initial access, the attacker discovered a network daemon running on the system that allowed him to obtain root access. What is the name of the vulnerable service or daemon that enabled the attacker to gain a root shell?</div>
+  <p>Analizando el historial de comandos de bash y los procesos en ejecución (<code>ps_auxwww.txt</code>), detectamos el servicio de red local aprovechado para la escalada.</p>
+  <figure>
+    <img src="img/Pasted image 20260915185451.png" alt="Análisis de bash_history">
+    <figcaption>Revisión de comandos y scripts ejecutados post-explotación.</figcaption>
+  </figure>
+  <figure>
+    <img src="img/Pasted image 20260915185951.png" alt="Servicio demonio detectado">
+    <figcaption>Identificación del servicio vulnerable en ps_auxwww.</figcaption>
+  </figure>
+  <p class="respuesta"><b>Respuesta:</b> <code>telnetd</code></p>
+
+  <h3>Tarea 5</h3>
+  <div class="pregunta"><b>Pregunta:</b> We need to collect all IOCs and IOAs so we can perform threat hunting to understand the breach radius. What is the full path of the malicious script file the attacker executed?</div>
+  <p>Examinando el árbol de directorios y los rastros de ejecución del exploit, ubicamos el script de Python empleado para interactuar con la vulnerabilidad.</p>
+  <p class="respuesta"><b>Respuesta:</b> <code>/tmp/.X11-unix/X2.py</code></p>
+
+  <h3>Tarea 6</h3>
+  <div class="pregunta"><b>Pregunta:</b> What is the CVE ID of the exploited service or daemon that allowed privilege escalation?</div>
+  <p>Identificamos la vulnerabilidad exacta asociada al demonio de red explotado para la elevación de privilegios.</p>
+  <p class="respuesta"><b>Respuesta:</b> <code>CVE-2026-24061</code></p>
+
+  <h3>Tarea 7</h3>
+  <div class="pregunta"><b>Pregunta:</b> What is the full command the attacker executed to gain higher privileges?</div>
+  <p>A partir del análisis del historial de comandos, vemos la ejecución del script auxiliar junto con los parámetros locales hacia el servicio.</p>
+  <p class="respuesta"><b>Respuesta:</b> <code>python3 X2.py 127.0.0.1</code></p>
+
+  <h3>Tarea 8</h3>
+  <div class="pregunta"><b>Pregunta:</b> When did the attacker launch the script to exploit the vulnerability to gain higher privileges?</div>
+  <p>Consultando el archivo de línea temporal (<code>bodyfile.txt</code>) y realizando la conversión de marcas de tiempo Epoch, determinamos el momento exacto del lanzamiento del exploit.</p>
+  <figure>
+    <img src="img/Pasted image 20260916100254.png" alt="Timestamp del exploit en bodyfile">
+    <figcaption>Marcas de tiempo de acceso y modificación en el bodyfile.</figcaption>
+  </figure>
+  <p class="respuesta"><b>Respuesta:</b> <code>2026-04-07 17:06:15</code></p>
+
+  <h3>Tarea 9</h3>
+  <div class="pregunta"><b>Pregunta:</b> When did the attacker obtain a root shell on the system?</div>
+  <p>Correlacionando los registros de autenticación (<code>auth.log</code>), identificamos el momento en que se consumó la sesión con privilegios de superusuario.</p>
+  <figure>
+    <img src="img/Pasted image 20260916100106.png" alt="Registro en auth.log">
+    <figcaption>Validación de acceso root en los registros de autenticación.</figcaption>
+  </figure>
+  <p class="respuesta"><b>Respuesta:</b> <code>2026-04-07 17:06:27</code></p>
+
+  <h3>Tarea 10</h3>
+  <div class="pregunta"><b>Pregunta:</b> Once the attacker gained root access on the system, they began preparing for data exfiltration. Data was staged and compressed before being exfiltrated outside the network. What is the full path of the archive file?</div>
+  <p>Inspeccionando la base de datos de metadatos Tracker3 (<code>meta.db</code>) del usuario y los directorios home, localizamos el archivo comprimido generado para el staging de los datos.</p>
+  <figure>
+    <img src="img/Pasted image 20260916115734.png" alt="Archivo comprimido system_logs.zip">
+    <figcaption>Localización del archivo de staging en meta.db.</figcaption>
+  </figure>
+  <p class="respuesta"><b>Respuesta:</b> <code>/home/irek/system_logs.zip</code></p>
+
+  <h3>Tarea 11</h3>
+  <div class="pregunta"><b>Pregunta:</b> The developer had many sensitive files on their server, including sensitive project files. How many total files were exfiltrated by the attacker and should be considered leaked?</div>
+  <p>Analizando la cronología de accesos en el <code>bodyfile.txt</code> para el directorio de proyectos del usuario durante la ventana de actividad maliciosa, obtenemos el recuento total de archivos afectados.</p>
+  <figure>
+    <img src="img/Pasted image 20260916142938.png" alt="Conteo de archivos accedidos">
+    <figcaption>Recuento de accesos masivos en mcp-connector-hub.</figcaption>
+  </figure>
+  <p class="respuesta"><b>Respuesta:</b> <code>489</code></p>
+
+  <h3>Tarea 12</h3>
+  <div class="pregunta"><b>Pregunta:</b> The attacker used a native tool to exfiltrate data from the server. When did the attacker start exfiltrating the archived data?</div>
+  <p>Tras revisar los registros de comandos y la traza temporal de accesos en el bodyfile (atime correspondiente a la lectura masiva previa a la exfiltración con herramientas nativas como <code>curl</code>), obtenemos la marca temporal exacta.</p>
+  <figure>
+    <img src="img/Pasted image 20260916171052.png" alt="Timestamp de exfiltración en bodyfile">
+    <figcaption>Marca de tiempo de acceso (atime) reflejada en el análisis forense.</figcaption>
+  </figure>
+  <p class="respuesta"><b>Respuesta:</b> <code>2026-04-07 17:11:43</code></p>
+
+  <h3>Tarea 13</h3>
+  <div class="pregunta"><b>Pregunta:</b> The attacker used a malicious ELF binary for persistence. What was the path where it was stored on disk before being moved to a new location?</div>
+  <p>Identificamos la ubicación original del binario ELF malicioso utilizado para asegurar el acceso a largo plazo antes de su reubicación.</p>
+  <figure>
+    <img src="img/Pasted image 20260916165152.png" alt="Ubicación original del ELF malicioso">
+    <figcaption>Ruta previa al movimiento del binario de persistencia.</figcaption>
+  </figure>
+  <p class="respuesta"><b>Respuesta:</b> <code>/home/irek/les</code></p>
+
+  <h3>Tarea 14</h3>
+  <div class="pregunta"><b>Pregunta:</b> After exfiltrating the sensitive data, the attacker set up a stealth persistence mechanism to maintain long-term access on the system. The attacker modified a file to create a stealth persistence workflow that executes the malicious ELF binary whenever a certain activity occurs on the server. What is the full command configured to run the persistence routine?</div>
+  <p>Inspeccionando los archivos de configuración modificados, identificamos el comando exacto configurado para ejecutar el binario en segundo plano de forma sigilosa.</p>
+  <figure>
+    <img src="img/Pasted image 20260916163833.png" alt="Configuración de persistencia stealth">
+    <figcaption>Comando configurado para la persistencia del binario.</figcaption>
+  </figure>
+  <p class="respuesta"><b>Respuesta:</b> <code>bash -c 'nohup /usr/bin/les > /dev/null 2>&1 &'</code></p>
+
+  <h3>Tarea 15</h3>
+  <div class="pregunta"><b>Pregunta:</b> After setting up the persistence configuration file, the attacker modified the binary responsible for establishing the C2 connection to run with root privileges. When did they perform this action?</div>
+  <p>Consultando los metadatos del archivo en el <code>bodyfile.txt</code> (específicamente el CTIME, que registra el cambio de permisos y metadatos del binario <code>/usr/bin/les</code>), determinamos el momento exacto de la acción.</p>
+  <figure>
+    <img src="img/Pasted image 20260916160247.png" alt="CTIME del binario les">
+    <figcaption>Registro de cambio de metadatos (CTIME) en el bodyfile.</figcaption>
+  </figure>
+  <p class="respuesta"><b>Respuesta:</b> <code>2026-04-07 17:18:24</code></p>
+
+  <h2>Línea temporal</h2>
+  <table>
+    <tr><th>Hora (UTC)</th><th>Evento</th><th>Fuente</th></tr>
+    <tr><td>2026-04-07 17:06:15</td><td>Lanzamiento del exploit <code>X2.py</code> para la escalada de privilegios</td><td>Bodyfile / Historial</td></tr>
+    <tr><td>2026-04-07 17:06:27</td><td>Obtención de la shell con privilegios de root mediante el servicio vulnerable</td><td><code>auth.log</code></td></tr>
+    <tr><td>2026-04-07 17:10:55 - 17:10:56</td><td>Acceso masivo y preparación/staging de los archivos de proyectos</td><td>Tracker3 / Bodyfile</td></tr>
+    <tr><td>2026-04-07 17:11:43</td><td>Inicio del proceso de exfiltración de los datos comprimidos</td><td>Bodyfile (atime)</td></tr>
+    <tr><td>2026-04-07 17:18:24</td><td>Modificación de permisos y metadatos del binario de persistencia (<code>/usr/bin/les</code>)</td><td>Bodyfile (ctime)</td></tr>
+  </table>
+
+  <h2>Indicadores de compromiso (IOC)</h2>
+  <ul>
+    <li><strong>Servidor C2:</strong> <code>172.168.40.101:1337</code></li>
+    <li><strong>Binario de Acceso Inicial:</strong> <code>/home/irek/Documents/mcp-connector-hub/vendor/bin/.cache/update</code></li>
+    <li><strong>Script de Explotación:</strong> <code>/tmp/.X11-unix/X2.py</code> (CVE-2026-24061)</li>
+    <li><strong>Archivo de Staging:</strong> <code>/home/irek/system_logs.zip</code> (489 archivos filtrados)</li>
+    <li><strong>Binario de Persistencia:</strong> <code>/usr/bin/les</code> (Ejecutado mediante nohup)</li>
+  </ul>
+
+  <h2>Conclusiones</h2>
+  <p>El análisis del reto Yggdrasil evidencia un ataque dirigido sofisticado que abarca desde la ejecución de código inicial camuflado en dependencias de desarrollo, la explotación de un demonio local vulnerable para la escalada a root (telnetd), el acopio y exfiltración masiva de 489 archivos de proyectos, hasta el establecimiento de persistencia sigilosa a nivel de sistema.</p>
+</main>
+
+<footer>© <span id="year"></span> salva · Writeups de HackTheBox Sherlocks</footer>
+<script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>
