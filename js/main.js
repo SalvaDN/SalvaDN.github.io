@@ -9,12 +9,12 @@ const ICON = {
   tag:'<svg class="i" viewBox="0 0 16 16"><path d="M2 1h5.2a1 1 0 0 1 .7.3l6.8 6.8a1 1 0 0 1 0 1.4l-4.9 4.9a1 1 0 0 1-1.4 0L1.6 8.6A1 1 0 0 1 1.3 8V2a1 1 0 0 1 1-1Zm2 2.5a1 1 0 1 0 0 2 1 1 0 0 0 0-2Z"/></svg>'
 };
 
-const list = document.getElementById("list");
-const filter = document.getElementById("filter");
-let activo = null;
-
 const POR_PAGINA = 5;
 let pagina = 1;
+let activo = null;
+
+const list = document.getElementById("list");
+const filter = document.getElementById("filter");
 const pager = document.getElementById("paginacion");
 
 function pintar(){
@@ -29,7 +29,11 @@ function pintar(){
   filter.style.display = activo ? "block" : "none";
   document.getElementById("filter-name").textContent = activo || "";
 
-  if(!datos.length){ list.innerHTML = "<p>No hay posts con ese tag.</p>"; pager.innerHTML = ""; return; }
+  if(!datos.length){
+    list.innerHTML = "<p>No hay posts con ese tag.</p>";
+    pager.innerHTML = "";
+    return;
+  }
 
   list.innerHTML = datos.map(p => {
     const c = colores[p.dificultad] || "#8fd14f";
@@ -58,7 +62,6 @@ function pintar(){
     <button data-p="${pagina - 1}" ${pagina === 1 ? "disabled" : ""}>← Anteriores</button>
     <span>Página ${pagina} de ${total}</span>
     <button data-p="${pagina + 1}" ${pagina === total ? "disabled" : ""}>Siguientes →</button>` : "";
-  
 }
 
 list.addEventListener("click", e => {
@@ -74,3 +77,6 @@ pager.addEventListener("click", e => {
     document.getElementById("posts").scrollIntoView();
   }
 });
+
+document.getElementById("year").textContent = new Date().getFullYear();
+pintar();
