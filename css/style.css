@@ -37,7 +37,7 @@ article.post h2 a:hover{text-decoration:underline}
 .cube{flex:none;width:36px;height:36px;border-radius:50%;background:#16241a;color:var(--accent);display:grid;place-items:center;font-size:18px}
 .date{font-size:14px;margin:12px 0 6px}
 .date span{color:var(--muted)}
-article.post p{margin:0 0 20px;font-size:17px}
+article.post p{margin:0 0 20px;font-size:17px;text-align:justify;hyphens:auto}
 .tags{display:flex;flex-wrap:wrap;gap:8px 26px;align-items:center;font-weight:700;font-size:14px}
 .tags .ico{font-size:28px;margin-right:-4px}
 .tags button{background:none;border:0;color:inherit;font:inherit;cursor:pointer;padding:0}
