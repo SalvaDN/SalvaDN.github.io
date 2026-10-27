@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PhantomRing - Sherlock · Portfolio</title>
+<!-- Metadatos requeridos por py/build-posts.py -->
+<meta name="post:titulo" content="PhantomRing - Sherlock">
+<meta name="post:fecha" content="2026-09-23">
+<meta name="post:resumen" content="Análisis estático e ingeniería inversa de un binario en Linux que utiliza la interfaz de E/S asíncrona io_uring, inspección de entropía, cadenas y rutinas de limpieza.">
+<meta name="post:dificultad" content="Medium">
+<meta name="post:os" content="Linux">
+<meta name="post:tags" content="io_uring,malware,linux,reverse-engineering,dfir,htb">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<!-- Las rutas llevan ../ porque esta página está dentro de retos/ -->
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<header>
+  <a class="logo" href="../index.html">PortFolio</a>
+  <nav>
+    <a href="../index.html">Inicio</a>
+    <a href="../index.html#posts">Posts</a>
+    <a href="../index.html#posts">Categorías</a>
+    <a href="../index.html#posts">Tags</a>
+    <a href="../index.html#sobre-mi">Sobre mí</a>
+  </nav>
+</header>
+
+<main class="reto">
+  <a class="volver" href="../index.html#posts">← Volver a los posts</a>
+
+  <!-- Título y ficha del reto -->
+  <h1>PhantomRing - Sherlock</h1>
+  <div class="ficha">
+    <span><strong>Fecha:</strong> 23 sep 2026</span>
+    <span><strong>Dificultad:</strong> Medium</span>
+    <span><strong>Categoría:</strong> DFIR / Reverse Engineering</span>
+    <span><strong>Sistema:</strong> Linux</span>
+    <span><strong>Plataforma:</strong> HackTheBox</span>
+  </div>
+
+  <h2>Resumen</h2>
+  <p>Análisis estático y de ingeniería inversa de un binario en Linux. Comprobamos la entropía para descartar que esté empaquetado, extraemos cadenas de texto relevantes y examinamos el uso de la interfaz de E/S asíncrona de alto rendimiento <code>io_uring</code> junto con diversas rutas y rutinas internas del sistema.</p>
+
+  <h2>Escenario</h2>
+  <p>Investigación de un binario sospechoso en un entorno Linux. El flujo de análisis comprende la verificación estructural, revisión de entropía, extracción de strings y resolución de las tareas técnicas del reto.</p>
+
+  <h2>Artefactos y herramientas</h2>
+  <ul>
+    <li>Artefactos: Binario analizado del reto PhantomRing.</li>
+    <li>Herramientas: Analizadores de entropía, herramientas de extracción de strings e ingeniería inversa.</li>
+  </ul>
+
+  <h2>Análisis</h2>
+
+  <h3>Reconocimiento inicial y Entropía</h3>
+  <p>Realizamos una inspección preliminar del binario y comprobamos sus niveles de entropía, confirmando que no se encuentra empaquetado.</p>
+  <figure>
+    <img src="img/Pasted image 20260923160000.png" alt="Análisis inicial">
+    <figcaption>Inspección inicial del archivo.</figcaption>
+  </figure>
+  <figure>
+    <img src="img/Pasted image 20260923160154.png" alt="Entropía del binario">
+    <figcaption>Verificación de entropía (sin empaquetar).</figcaption>
+  </figure>
+  <p>Extraemos las cadenas de texto (strings) incrustadas para localizar referencias clave.</p>
+  <figure>
+    <img src="img/Pasted image 20260923160244.png" alt="Extracción de strings">
+    <figcaption>Análisis de cadenas de texto en el binario.</figcaption>
+  </figure>
+
+  <h3>Tarea 1</h3>
+  <div class="pregunta"><b>Pregunta:</b> What is the SHA-256 hash / identifier of the analyzed binary?</div>
+  <figure>
+    <img src="img/Pasted image 20260923160355.png" alt="Hash del binario">
+    <figcaption>Extracción del hash identificador.</figcaption>
+  </figure>
+  <p class="respuesta"><b>Respuesta:</b> <code>2d7b1b2178f76c26893b2a56cbf9b36700235259e76b893d53817d5b66b634a5</code></p>
+
+  <h3>Tarea 2</h3>
+  <div class="pregunta"><b>Pregunta:</b> ...</div>
+  <figure>
+    <img src="img/Pasted image 20260923160537.png" alt="Tarea 2">
+    <figcaption>Evidencia de la tarea 2.</figcaption>
+  </figure>
+  <p class="respuesta"><b>Respuesta:</b> <code>...</code></p>
+
+  <h3>Tarea 3</h3>
+  <div class="pregunta"><b>Pregunta:</b> ...</div>
+  <figure>
+    <img src="img/Pasted image 20260923161422.png" alt="Tarea 3">
+    <figcaption>Evidencia de la tarea 3.</figcaption>
+  </figure>
+  <p class="respuesta"><b>Respuesta:</b> <code>...</code></p>
+
+  <h3>Tarea 4</h3>
+  <div class="pregunta"><b>Pregunta:</b> ...</div>
+  <figure>
+    <img src="img/Pasted image 20260923161719.png" alt="Tarea 4">
+    <figcaption>Evidencia de la tarea 4.</figcaption>
+  </figure>
+  <p class="respuesta"><b>Respuesta:</b> <code>...</code></p>
+
+  <h3>Tarea 5</h3>
+  <div class="pregunta"><b>Pregunta:</b> ...</div>
+  <figure>
+    <img src="img/Pasted image 20260923162022.png" alt="Tarea 5">
+    <figcaption>Cálculo de parámetros (13 - 2 = 11).</figcaption>
+  </figure>
+  <p class="respuesta"><b>Respuesta:</b> <code>11</code></p>
+
+  <h3>Tarea 6</h3>
+  <div class="pregunta"><b>Pregunta:</b> What is the high-performance asynchronous I/O interface utilized by the malware?</div>
+  <p>El binario hace uso de la interfaz de E/S asíncrona de alto rendimiento de Linux llamada <code>io_uring</code>.</p>
+  <figure>
+    <img src="img/Pasted image 20260923162410.png" alt="Interfaz io_uring">
+    <figcaption>Identificación de la interfaz io_uring.</figcaption>
+  </figure>
+  <p class="respuesta"><b>Respuesta:</b> <code>io_uring</code></p>
+
+  <h3>Tarea 7</h3>
+  <div class="pregunta"><b>Pregunta:</b> What system file or accounting record path is targeted by the binary?</div>
+  <figure>
+    <img src="img/Pasted image 20260923162727.png" alt="Ruta utmp">
+    <figcaption>Localización de la ruta de registros de sesión.</figcaption>
+  </figure>
+  <p class="respuesta"><b>Respuesta:</b> <code>/var/run/utmp</code></p>
+
+  <h3>Tarea 8</h3>
+  <div class="pregunta"><b>Pregunta:</b> What directory path is referenced for binaries or commands?</div>
+  <figure>
+    <img src="img/Pasted image 20260923162847.png" alt="Directorio usr bin">
+    <figcaption>Ruta de binarios del sistema utilizada.</figcaption>
+  </figure>
+  <p class="respuesta"><b>Respuesta:</b> <code>/usr/bin</code></p>
+
+  <h3>Tarea 9</h3>
+  <div class="pregunta"><b>Pregunta:</b> ...</div>
+  <figure>
+    <img src="img/Pasted image 20260923163623.png" alt="Tarea 9">
+    <figcaption>Evidencia de la tarea 9.</figcaption>
+  </figure>
+  <p class="respuesta"><b>Respuesta:</b> <code>...</code></p>
+
+  <h3>Tarea 10</h3>
+  <div class="pregunta"><b>Pregunta:</b> ...</div>
+  <figure>
+    <img src="img/Pasted image 20260923164105.png" alt="Tarea 10">
+    <figcaption>Evidencia de la tarea 10.</figcaption>
+  </figure>
+  <p class="respuesta"><b>Respuesta:</b> <code>...</code></p>
+
+  <h3>Tarea 11</h3>
+  <div class="pregunta"><b>Pregunta:</b> ...</div>
+  <figure>
+    <img src="img/Pasted image 20260923164305.png" alt="Tarea 11">
+    <figcaption>Evidencia de la tarea 11.</figcaption>
+  </figure>
+  <p class="respuesta"><b>Respuesta:</b> <code>...</code></p>
+
+  <h3>Tarea 12</h3>
+  <div class="pregunta"><b>Pregunta:</b> What specific destruction or cleanup function/routine name is identified?</div>
+  <figure>
+    <img src="img/Pasted image 20260923165226.png" alt="Función sdestruct">
+    <figcaption>Identificación de la rutina de limpieza o destrucción.</figcaption>
+  </figure>
+  <p class="respuesta"><b>Respuesta:</b> <code>sdestruct</code></p>
+
+  <h2>Línea temporal</h2>
+  <table>
+    <tr><th>Fase</th><th>Evento</th><th>Artefacto / Fuente</th></tr>
+    <tr><td>Reconocimiento Estático</td><td>Verificación de entropía y extracción de cadenas de texto</td><td>Análisis binario inicial</td></tr>
+    <tr><td>Análisis de Capacidades</td><td>Uso de <code>io_uring</code> y rutas objetivo como <code>/var/run/utmp</code> y <code>/usr/bin</code></td><td>Desensamblado / Strings</td></tr>
+    <tr><td>Rutinas Internas</td><td>Localización de la función de limpieza <code>sdestruct</code></td><td>Ingeniería inversa</td></tr>
+  </table>
+
+  <h2>Indicadores de compromiso (IOC)</h2>
+  <ul>
+    <li><strong>Hash del binario:</strong> <code>2d7b1b2178f76c26893b2a56cbf9b36700235259e76b893d53817d5b66b634a5</code></li>
+    <li><strong>Interfaz de E/S utilizada:</strong> <code>io_uring</code></li>
+    <li><strong>Rutas objetivo:</strong> <code>/var/run/utmp</code>, <code>/usr/bin</code></li>
+    <li><strong>Rutinas clave:</strong> <code>sdestruct</code></li>
+  </ul>
+
+  <h2>Conclusiones</h2>
+  <p>El análisis del binario PhantomRing demuestra el uso de características avanzadas de Linux como la interfaz de E/S asíncrona <code>io_uring</code> para la ejecución eficiente y sigilosa de operaciones, integrando rutinas de limpieza como <code>sdestruct</code> para la eliminación de huellas.</p>
+</main>
+
+<footer>© <span id="year"></span> salva · Writeups de HackTheBox Sherlocks</footer>
+<script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>
