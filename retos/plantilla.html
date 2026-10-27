@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- 1. Cambia el título -->
+<title>NOMBRE - Sherlock · Portfolio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<!-- Las rutas llevan ../ porque esta página está dentro de retos/ -->
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<header>
+  <a class="logo" href="../index.html">PortFolio</a>
+  <nav>
+    <a href="../index.html">Inicio</a>
+    <a href="../index.html#posts">Posts</a>
+    <a href="../index.html#posts">Categorías</a>
+    <a href="../index.html#posts">Tags</a>
+    <a href="../index.html#sobre-mi">Sobre mí</a>
+  </nav>
+</header>
+
+<main class="reto">
+  <a class="volver" href="../index.html#posts">← Volver a los posts</a>
+
+  <!-- 2. Título y ficha del reto -->
+  <h1>NOMBRE - Sherlock</h1>
+  <div class="ficha">
+    <span><strong>Fecha:</strong> 27 oct 2026</span>
+    <span><strong>Dificultad:</strong> Very Easy</span>
+    <span><strong>Categoría:</strong> DFIR</span>
+    <span><strong>Sistema:</strong> Windows</span>
+    <span><strong>Plataforma:</strong> HackTheBox</span>
+  </div>
+
+  <h2>Resumen</h2>
+  <p>Cuenta en dos o tres frases de qué va el escenario y qué se consigue al final.</p>
+
+  <h2>Escenario</h2>
+  <p>Pega aquí el enunciado del reto, con tus palabras o citándolo.</p>
+
+  <h2>Artefactos y herramientas</h2>
+  <ul>
+    <li>Artefacto 1 (por ejemplo, <code>Security.evtx</code>)</li>
+    <li>Herramienta 1 (por ejemplo, Event Viewer, Chainsaw, Wireshark)</li>
+  </ul>
+
+  <h2>Análisis</h2>
+
+  <h3>Tarea 1</h3>
+  <div class="pregunta"><b>Pregunta:</b> Texto de la pregunta tal como aparece en HTB.</div>
+  <p>Explica cómo lo encontraste: qué abriste, qué buscaste y por qué.</p>
+  <pre><code>comando o filtro que usaste</code></pre>
+  <!-- Para una imagen: guarda el archivo en img/ y enlázalo así -->
+  <!--
+  <figure>
+    <img src="../img/nombre-captura.png" alt="Descripción de la captura">
+    <figcaption>Qué se ve en la captura.</figcaption>
+  </figure>
+  -->
+  <p class="respuesta"><b>Respuesta:</b> <code>respuesta</code></p>
+
+  <h3>Tarea 2</h3>
+  <div class="pregunta"><b>Pregunta:</b> ...</div>
+  <p>...</p>
+  <p class="respuesta"><b>Respuesta:</b> <code>...</code></p>
+
+  <h2>Línea temporal</h2>
+  <table>
+    <tr><th>Hora (UTC)</th><th>Evento</th><th>Fuente</th></tr>
+    <tr><td>2026-01-01 10:00:00</td><td>Qué pasó</td><td>Dónde lo viste</td></tr>
+  </table>
+
+  <h2>Indicadores de compromiso (IOC)</h2>
+  <ul>
+    <li><strong>IP:</strong> <code>0.0.0.0</code></li>
+    <li><strong>Hash:</strong> <code>...</code></li>
+    <li><strong>Archivo:</strong> <code>...</code></li>
+  </ul>
+
+  <h2>Conclusiones</h2>
+  <p>Qué ocurrió en resumen y qué aprendiste del reto.</p>
+</main>
+
+<footer>© <span id="year"></span> salva · Writeups de HackTheBox Sherlocks</footer>
+<script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>
