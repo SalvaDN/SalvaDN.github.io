@@ -12,10 +12,10 @@ import sys
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
-CARPETAS = {"retos": "Sherlock", "proyectos": "Proyecto", "estudios": "Estudio"}
+CARPETAS = {"retos": "Reto", "proyectos": "Proyecto", "estudios": "Estudio"}
 META = re.compile(r'<meta\s+name="post:([a-z]+)"\s+content="([^"]*)"\s*/?>', re.I)
 FECHA = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-OPCIONALES = ["dificultad", "os", "puntos", "estado", "icono", "imagen"]
+OPCIONALES = ["plataforma", "dificultad", "os", "puntos", "estado", "icono", "imagen"]
 
 
 def aviso(msg):
