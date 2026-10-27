@@ -19,12 +19,21 @@ const list = document.getElementById("list");
 const filter = document.getElementById("filter");
 const pager = document.getElementById("paginacion");
 
+/* Filtro por tipo desde el menú: index.html?tipo=Proyecto, ?tipo=Estudio, ?tipo=Sherlock */
+const NOMBRES = {"Sherlock":"Sherlocks","Proyecto":"Proyectos","Estudio":"Estudios"};
+const tipoPagina = new URLSearchParams(location.search).get("tipo");
+if(tipoPagina){
+  const h = document.querySelector("#posts h1");
+  if(h) h.textContent = NOMBRES[tipoPagina] || tipoPagina;
+}
+
 function pintar(){
   if(typeof posts === "undefined" || !Array.isArray(posts)){
     list.innerHTML = "<p>No se han podido cargar las publicaciones. Comprueba que existe js/posts.js y que no tiene errores.</p>";
     return;
   }
   const todos = posts
+    .filter(p => !tipoPagina || (p.tipo || "Sherlock") === tipoPagina)
     .filter(p => !activo || p.tags.includes(activo))
     .sort((a,b) => b.fecha.localeCompare(a.fecha));
 
@@ -36,7 +45,9 @@ function pintar(){
   document.getElementById("filter-name").textContent = activo || "";
 
   if(!datos.length){
-    list.innerHTML = activo ? "<p>No hay posts con ese tag.</p>" : "<p>Todavía no hay publicaciones.</p>";
+    list.innerHTML = activo ? "<p>No hay posts con ese tag.</p>"
+      : tipoPagina ? `<p>Todavía no hay ${(NOMBRES[tipoPagina] || tipoPagina).toLowerCase()}.</p>`
+      : "<p>Todavía no hay publicaciones.</p>";
     if(pager) pager.innerHTML = "";
     return;
   }
@@ -54,7 +65,7 @@ function pintar(){
       : `<div><span>Tipo:</span><em>${esc(tipo)}</em></div>` + (p.estado ? `<div><span>Estado:</span><em>${esc(p.estado)}</em></div>` : "");
     const miniatura = p.imagen
       ? `<img src="${esc(p.imagen)}" alt="${esc(p.titulo)}" style="width:100%;display:block">`
-      : `<div class="badge">${esc(nombre)}</div>
+      : `${p.icono ? `<div class="badge img"><img src="${esc(p.icono)}" alt=""></div>` : `<div class="badge">${esc(nombre)}</div>`}
         <div class="meta"><b>${esc(esSh ? nombre : p.titulo)}</b>${filas}</div>`;
     return `
     <article class="post">
