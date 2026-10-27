@@ -33,7 +33,7 @@ function pintar(){
     return;
   }
   const todos = posts
-    .filter(p => !tipoPagina || (p.tipo || "Sherlock") === tipoPagina)
+    .filter(p => !tipoPagina || (p.tipo || "Retos") === tipoPagina)
     .filter(p => !activo || p.tags.includes(activo))
     .sort((a,b) => b.fecha.localeCompare(a.fecha));
 
