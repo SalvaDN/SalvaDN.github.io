@@ -47,6 +47,7 @@ article.post p{margin:0 0 20px;font-size:17px;text-align:justify;hyphens:auto}
 .thumb{align-self:start;background:#060d1a;padding:14px;display:flex;align-items:center;gap:18px}
 .badge{flex:none;width:120px;height:120px;border-radius:50%;border:6px solid var(--c);display:grid;place-items:center;
   background:radial-gradient(circle,#0d1a2e,#07101e);font:700 10px 'Press Start 2P',monospace;color:var(--c);text-align:center;padding:4px;word-break:break-word}
+.meta{flex:1;font:11px ui-monospace,Menlo,monospace;color:var(--muted)}
 .meta b{display:block;font:700 15px ui-monospace,Menlo,monospace;color:var(--text);margin-bottom:8px;text-align:center}
 .meta div{display:flex;justify-content:space-between;gap:10px;background:#101c30;padding:4px 8px;margin-bottom:3px}
 .meta em{font-style:normal;color:var(--c)}
