@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phanthom - Sherlock · Portfolio</title>
+<!-- Metadatos requeridos por py/build-posts.py -->
+<meta name="post:titulo" content="Phanthom - Sherlock">
+<meta name="post:fecha" content="2026-10-01">
+<meta name="post:resumen" content="Análisis forense de memoria en Linux con Volatility 3 para investigar un rootkit LKM oculto llamado singularity, inspeccionando ganchos del kernel, conexiones de red y variables de entorno de escalada de privilegios.">
+<meta name="post:dificultad" content="Medium">
+<meta name="post:os" content="Linux">
+<meta name="post:tags" content="volatility,linux,rootkit,singularity,dfir,htb">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<!-- Las rutas llevan ../ porque esta página está dentro de retos/ -->
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<header>
+  <a class="logo" href="../index.html">PortFolio</a>
+  <nav>
+    <a href="../index.html">Inicio</a>
+    <a href="../index.html#posts">Posts</a>
+    <a href="../index.html#posts">Categorías</a>
+    <a href="../index.html#posts">Tags</a>
+    <a href="../index.html#sobre-mi">Sobre mí</a>
+  </nav>
+</header>
+
+<main class="reto">
+  <a class="volver" href="../index.html#posts">← Volver a los posts</a>
+
+  <!-- Título y ficha del reto -->
+  <h1>Phanthom - Sherlock</h1>
+  <div class="ficha">
+    <span><strong>Fecha:</strong> 01 oct 2026</span>
+    <span><strong>Dificultad:</strong> Medium</span>
+    <span><strong>Categoría:</strong> DFIR</span>
+    <span><strong>Sistema:</strong> Linux</span>
+    <span><strong>Plataforma:</strong> HackTheBox</span>
+  </div>
+
+  <h2>Resumen</h2>
+  <p>Investigación forense de un volcado de memoria de un servidor Ubuntu Linux 24.04 infectado por un LKM rootkit avanzado llamado <code>singularity</code>. Mediante el uso de Volatility 3, se analizan módulos ocultos, trazas del kernel (ftrace y tracepoints), conexiones de red ocultas y mecanismos de escalada de privilegios mediante variables de entorno.</p>
+
+  <h2>Escenario</h2>
+  <p>El servidor ha sido comprometido y se cuenta con un volcado de memoria (<code>dump_srv.mem</code>) junto con su archivo de símbolos JSON para el kernel de Ubuntu (6.8.0-87-generic). El objetivo es desenterrar las capacidades del rootkit, identificar las funciones interceptadas y reconstruir el vector de ataque y exfiltración.</p>
+
+  <h2>Artefactos y herramientas</h2>
+  <ul>
+    <li>Artefactos: Volcado de memoria <code>dump_srv.mem</code>, archivo de símbolos JSON del kernel <code>Ubuntu_6.8.0-87-generic.json</code>.</li>
+    <li>Herramientas: <code>Volatility 3</code> (plugins específicos de Linux: <code>linux.hidden_modules</code>, <code>linux.kmsg.Kmsg</code>, <code>linux.tracing.tracepoints</code>, <code>linux.sockstat.Sockstat</code>, <code>linux.tracing.ftrace</code>, <code>linux.envars.Envars</code>).</li>
+  </ul>
+
+  <h2>Análisis</h2>
+
+  <h3>Tarea 1</h3>
+  <div class="pregunta"><b>Pregunta:</b> What is the name of the hidden kernel module?</div>
+  <p>Verificamos la versión del kernel y utilizamos el plugin de Volatility para listar los módulos del kernel ocultos o desvinculados.</p>
+  <pre><code>vol -f dump_srv.mem banners
+vol -f dump_srv.mem -s . linux.hidden_modules</code></pre>
+  <figure>
+    <img src="img/Pasted image 20261001152900.png" alt="Banners del kernel">
+    <figcaption>Información de banners e identificación del perfil del kernel.</figcaption>
+  </figure>
+  <p class="respuesta"><b>Respuesta:</b> <code>singularity</code></p>
+
+  <h3>Tarea 2</h3>
+  <div class="pregunta"><b>Pregunta:</b> What kernel taint flags are set for the rootkit module? (comma-separated, alphabetical order)</div>
+  <p>A partir de la información del módulo oculto devuelta por el análisis, identificamos las banderas de taint asociadas al módulo cargado externamente y sin firmar.</p>
+  <p class="respuesta"><b>Respuesta:</b> <code>OOT_MODULE,UNSIGNED_MODULE</code></p>
+
+  <h3>Tarea 3</h3>
+  <div class="pregunta"><b>Pregunta:</b> At what exact time (in seconds since boot) was the rootkit module loaded</div>
+  <p>Consultamos el registro de mensajes del kernel (kmsg) filtrando por el nombre del rootkit para obtener la marca temporal exacta de su carga.</p>
+  <pre><code>vol -f dump_srv.mem -s . linux.kmsg.Kmsg | grep -i -B2 -A2 singularity</code></pre>
+  <figure>
+    <img src="img/Pasted image 20261001160626.png" alt="Kmsg log singularity">
+    <figcaption>Registro de kmsg mostrando el momento exacto de carga del módulo.</figcaption>
+  </figure>
+  <p class="respuesta"><b>Respuesta:</b> <code>2490.473832</code></p>
+
+  <h3>Tarea 4</h3>
+  <div class="pregunta"><b>Pregunta:</b> What was the PID of the process that loaded the rootkit module?</div>
+  <p>Identificamos el PID del proceso responsable de realizar la carga del módulo rootkit en el sistema.</p>
+  <figure>
+    <img src="img/Pasted image 20261001160844.png" alt="PID cargador">
+    <figcaption>Identificación del proceso que cargó el rootkit.</figcaption>
+  </figure>
+  <p class="respuesta"><b>Respuesta:</b> <code>2669</code></p>
+
+  <h3>Tarea 5</h3>
+  <div class="pregunta"><b>Pregunta:</b> Which kernel tracepoint is hooked by the rootkit?</div>
+  <p>Revisamos los puntos de traza (tracepoints) del kernel para detectar qué mecanismo está siendo interceptado por el módulo.</p>
+  <pre><code>vol -f dump_srv.mem -s . linux.tracing.tracepoints.CheckTracepoints</code></pre>
+  <figure>
+    <img src="img/Pasted image 20261001162411.png" alt="Tracepoints hooked">
+    <figcaption>Puntos de traza interceptados por singularity.</figcaption>
+  </figure>
+  <p class="respuesta"><b>Respuesta:</b> <code>sched_process_fork</code></p>
+
+  <h3>Tarea 6</h3>
+  <div class="pregunta"><b>Pregunta:</b> What is the IP address of the command and control server?</div>
+  <p>Analizamos las conexiones de red activas mediante el plugin sockstat para identificar comunicaciones hacia servidores externos de comando y control (C2).</p>
+  <pre><code>vol -f dump_srv.mem -s . linux.sockstat.Sockstat</code></pre>
+  <p class="respuesta"><b>Respuesta:</b> <code>192.168.200.164</code></p>
+
+  <h3>Tarea 7</h3>
+  <div class="pregunta"><b>Pregunta:</b> What port is the C2 server listening on?</div>
+  <p>A partir de la inspección de los sockets establecidos por los procesos comprometidos, determinamos el puerto remoto del servidor C2.</p>
+  <figure>
+    <img src="img/Pasted image 20261001163041.png" alt="Puerto C2">
+    <figcaption>Detalle de la conexión TCP y puerto del C2.</figcaption>
+  </figure>
+  <p class="respuesta"><b>Respuesta:</b> <code>8081</code></p>
+
+  <h3>Tarea 8</h3>
+  <div class="pregunta"><b>Pregunta:</b> What are the PIDs of the compromised bash processes connected to the C2 server? (comma-separated, ascending order)</div>
+  <p>Listamos y ordenamos de forma ascendente los identificadores de proceso (PIDs) de las instancias de bash involucradas en la conexión con el servidor C2.</p>
+  <p class="respuesta"><b>Respuesta:</b> <code>2693,2695,2698</code></p>
+
+  <h3>Tarea 9</h3>
+  <div class="pregunta"><b>Pregunta:</b> How many hooks has the rootkit installed?</div>
+  <p>Utilizamos el subsistema ftrace para buscar todas las referencias al módulo y contar la cantidad total de ganchos instalados en el kernel.</p>
+  <pre><code>vol -f dump_srv.mem -s . linux.tracing.ftrace.CheckFtrace | grep -i "singularity" | wc -l</code></pre>
+  <figure>
+    <img src="img/Pasted image 20261001164225.png" alt="Ftrace hooks">
+    <figcaption>Inspección de ganchos ftrace.</figcaption>
+  </figure>
+  <figure>
+    <img src="img/Pasted image 20261001164337.png" alt="Conteo total de hooks">
+    <figcaption>Resultado del recuento de ganchos del rootkit.</figcaption>
+  </figure>
+  <p class="respuesta"><b>Respuesta:</b> <code>82</code></p>
+
+  <h3>Tarea 10</h3>
+  <div class="pregunta"><b>Pregunta:</b> Which function is hooked to hide IPv4 network connections?</div>
+  <p>Identificamos la función específica del stack de red de Linux modificada para ocultar las conexiones de red IPv4.</p>
+  <figure>
+    <img src="img/Pasted image 20261001164532.png" alt="Hook red IPv4">
+    <figcaption>Función relacionada con la ocultación de conexiones IPv4.</figcaption>
+  </figure>
+  <p class="respuesta"><b>Respuesta:</b> <code>tcp4_seq_show</code></p>
+
+  <h3>Tarea 11</h3>
+  <div class="pregunta"><b>Pregunta:</b> How many variants of getdents syscalls are hooked?</div>
+  <p>Examinamos las llamadas al sistema asociadas a la enumeración de directorios (como <code>getdents</code> y su variante moderna <code>getdents64</code>).</p>
+  <figure>
+    <img src="img/Pasted image 20261001165219.png" alt="Getdents hooks">
+    <figcaption>Variantes de getdents interceptadas por el rootkit.</figcaption>
+  </figure>
+  <p class="respuesta"><b>Respuesta:</b> <code>5</code></p>
+
+  <h3>Tarea 12</h3>
+  <div class="pregunta"><b>Pregunta:</b> Which function is hooked to enable an ICMP-based covert channel?</div>
+  <p>Investigamos las funciones encargadas de procesar tráfico ICMP de entrada para descubrir el mecanismo de canal encubierto (covert channel).</p>
+  <figure>
+    <img src="img/Pasted image 20261001165608.png" alt="Hook ICMP">
+    <figcaption>Función responsable del manejo de paquetes ICMP entrantes.</figcaption>
+  </figure>
+  <p class="respuesta"><b>Respuesta:</b> <code>icmp_rcv</code></p>
+
+  <h3>Tarea 13</h3>
+  <div class="pregunta"><b>Pregunta:</b> What is the memory address of the centralized callback function? (Format:0x****)</div>
+  <p>Localizamos la dirección de memoria de la función de retrollamada (callback) centralizada utilizada por los mecanismos internos del rootkit.</p>
+  <figure>
+    <img src="img/Pasted image 20261001165657.png" alt="Dirección callback">
+    <figcaption>Dirección de memoria de la callback centralizada.</figcaption>
+  </figure>
+  <p class="respuesta"><b>Respuesta:</b> <code>0xffffc0b3aac0</code></p>
+
+  <h3>Tarea 14</h3>
+  <div class="pregunta"><b>Pregunta:</b> What is the value of the suspicious environment variable which leads to the escalation of privileges?</div>
+  <p>Analizamos las variables de entorno del sistema y el comportamiento de las sesiones. El operador abre una subshell con una variable personalizada y envía una señal en tiempo real (señal 59) a su propio proceso. Al recibirla, el módulo valida la variable de entorno y modifica la estructura de credenciales para otorgar UID 0 (root).</p>
+  <pre><code>vol -f dump_srv.mem -s . linux.envars.Envars</code></pre>
+  <figure>
+    <img src="img/Pasted image 20261001170116.png" alt="Envars 1">
+    <figcaption>Inspección inicial de variables de entorno del sistema.</figcaption>
+  </figure>
+  <figure>
+    <img src="img/Pasted image 20261001171831.png" alt="Valor Envars">
+    <figcaption>Detección del valor de la variable de entorno de escalada.</figcaption>
+  </figure>
+  <p class="respuesta"><b>Respuesta:</b> <code>access</code></p>
+
+  <h2>Línea temporal</h2>
+  <table>
+    <tr><th>Momento / Hora</th><th>Evento</th><th>Fuente</th></tr>
+    <tr><td>2490.473832 s (desde el arranque)</td><td>Carga del módulo rootkit oculto <code>singularity</code> por el proceso con PID 2669</td><td>Logs del kernel (kmsg)</td></tr>
+    <tr><td>Fase de ejecución</td><td>Establecimiento de conexión C2 con <code>192.168.200.164:8081</code> mediante procesos bash (PIDs 2693, 2695, 2698)</td><td>Volcado de sockets (sockstat)</td></tr>
+    <tr><td>Fase de escalada de privilegios</td><td>Definición de la variable de entorno <code>OPERATOR=access</code> y disparo de señal 59 para elevación de UID a root</td><td>Variables de entorno y trazas del sistema</td></tr>
+  </table>
+
+  <h2>Indicadores de compromiso (IOC)</h2>
+  <ul>
+    <li><strong>Módulo Oculto:</strong> <code>singularity</code> (Taints: OOT_MODULE, UNSIGNED_MODULE)</li>
+    <li><strong>Servidor C2:</strong> <code>192.168.200.164:8081</code></li>
+    <li><strong>Variable de Entorno de Escalada:</strong> <code>OPERATOR=access</code></li>
+    <li><strong>PIDs Comprometidos:</strong> <code>2669</code> (cargador), <code>2693, 2695, 2698</code> (conexiones C2)</li>
+    <li><strong>Funciones Clave Enganchadas:</strong> <code>sched_process_fork</code>, <code>tcp4_seq_show</code>, <code>icmp_rcv</code></li>
+  </ul>
+
+  <h2>Conclusiones</h2>
+  <p>Este análisis forense demuestra la complejidad de los rootkits LKM modernos en entornos Linux. A través de Volatility 3, logramos destapar los 82 ganchos instalados por <code>singularity</code>, rastrear el canal encubierto ICMP, las conexiones de red ocultas y descubrir el mecanismo de escalada de privilegios basado en la variable de entorno <code>access</code> y señales en tiempo real.</p>
+</main>
+
+<footer>© <span id="year"></span> salva · Writeups de HackTheBox Sherlocks</footer>
+<script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>
