@@ -3,20 +3,22 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>TEMA DEL ESTUDIO · Portfolio</title>
-<!-- DATOS DE LA PORTADA: con estas etiquetas el estudio aparece solo en "Últimos posts". -->
-<meta name="post:titulo" content="TEMA DEL ESTUDIO">
-<meta name="post:tipo" content="Estudio">
+<title>NOMBRE DEL PROYECTO · Portfolio</title>
+<!-- DATOS DE LA PORTADA: con estas etiquetas el proyecto aparece solo en "Últimos posts". -->
+<meta name="post:titulo" content="NOMBRE DEL PROYECTO">
+<meta name="post:tipo" content="Proyecto">
 <meta name="post:fecha" content="2026-10-27">
-<meta name="post:resumen" content="Dos o tres frases sobre qué has estudiado y qué se saca en claro.">
+<meta name="post:resumen" content="Dos o tres frases sobre en qué consiste el proyecto.">
 <meta name="post:tags" content="tag1, tag2, tag3">
-<!-- Opcionales: estado (ej. "Terminado"), imagen, icono y borrador -->
-<!-- <meta name="post:estado" content="Terminado"> -->
+<meta name="post:estado" content="En curso">
+<!-- Opcionales: imagen (sustituye toda la tarjeta), icono (sustituye el círculo) y borrador -->
+<!-- <meta name="post:imagen" content="img/proyecto.png"> -->
 <!-- <meta name="post:borrador" content="si"> -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 <!-- Las rutas llevan ../ porque esta página está dentro de retos/ -->
 <link rel="stylesheet" href="../css/style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23050b17'/%3E%3Ctext x='32' y='47' font-size='44' font-family='monospace' font-weight='bold' text-anchor='middle' fill='%237a8f3a'%3ES%3C/text%3E%3C/svg%3E">
 </head>
 <body>
 
@@ -24,10 +26,10 @@
   <a class="logo" href="../index.html">PortFolio</a>
   <nav>
     <a href="../index.html">Inicio</a>
-    <a href="../index.html#posts">Posts</a>
-    <a href="../index.html#posts">Categorías</a>
-    <a href="../index.html#posts">Tags</a>
-    <a href="../index.html#sobre-mi">Sobre mí</a>
+    <a href="../index.html?tipo=Reto">Retos</a>
+    <a href="../index.html?tipo=Proyecto">Proyectos</a>
+    <a href="../index.html?tipo=Estudio">Estudios</a>
+    <a href="../sobremi/sobremi.html">Sobre mí</a>
   </nav>
 </header>
 
@@ -35,32 +37,43 @@
   <a class="volver" href="../index.html#posts">← Volver a los posts</a>
 
   <!-- 2. Título y ficha del reto -->
-  <h1>TEMA DEL ESTUDIO</h1>
+  <h1>NOMBRE DEL PROYECTO</h1>
   <div class="ficha">
     <span><strong>Fecha:</strong> 27 oct 2026</span>
-    <span><strong>Tema:</strong> ...</span>
-    <span><strong>Fuentes:</strong> ...</span>
+    <span><strong>Estado:</strong> En curso</span>
+    <span><strong>Tecnologías:</strong> ...</span>
+    <span><strong>Repositorio:</strong> <a class="ext" href="https://github.com/SalvaDN">enlace</a></span>
   </div>
 
-  <h2>Introducción</h2>
-  <p>Qué quieres entender y por qué te interesa.</p>
+  <h2>Objetivo</h2>
+  <p>Qué quieres conseguir con este proyecto y por qué.</p>
 
-  <h2>Conceptos clave</h2>
-  <h3>Concepto 1</h3>
-  <p>Explícalo con tus palabras.</p>
-  <pre><code>ejemplo, comando o fragmento si hace falta</code></pre>
+  <h2>Planteamiento</h2>
+  <p>Cómo lo has enfocado, con qué herramientas y qué decisiones has tomado.</p>
 
-  <h2>Cómo lo he practicado</h2>
-  <p>Qué has probado y qué resultados has obtenido.</p>
+  <h2>Desarrollo</h2>
+  <h3>Paso 1</h3>
+  <p>Qué hiciste y cómo.</p>
+  <pre><code>comando o código relevante</code></pre>
+  <!--
+  <figure>
+    <img src="../img/captura.png" alt="Descripción">
+    <figcaption>Qué se ve en la captura.</figcaption>
+  </figure>
+  -->
+
+  <h2>Resultados</h2>
+  <p>Qué has conseguido y qué funciona.</p>
 
   <h2>Conclusiones</h2>
-  <p>Qué te llevas y qué te queda por estudiar.</p>
-
-  <h2>Referencias</h2>
-  <ul>
-    <li><a class="ext" href="https://ejemplo.com">Nombre de la fuente</a></li>
-  </ul>
+  <p>Qué has aprendido y qué mejorarías.</p>
 </main>
+
+<footer>© <span id="year"></span> Salvador Navarro · Portfolio · Writeups · Proyectos</footer>
+<script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>
+
 
 <footer>© <span id="year"></span> salva · Writeups de HackTheBox Sherlocks</footer>
 <script>document.getElementById("year").textContent = new Date().getFullYear();</script>
