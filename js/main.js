@@ -50,7 +50,7 @@ function pintar(){
 
   if(!datos.length){
     list.innerHTML = activo ? "<p>No hay posts con ese tag.</p>"
-      : tipoPagina ? `<p>Todavía no hay ${(NOMBRES[tipoPagina] || tipoPagina).toLowerCase()}.</p>`
+      : tipoPagina ? `<p>Todavía no hay ${esc((NOMBRES[tipoPagina] || tipoPagina).toLowerCase())}.</p>`
       : "<p>Todavía no hay publicaciones.</p>";
     if(pager) pager.innerHTML = "";
     return;
@@ -104,6 +104,13 @@ if(pager){
       document.getElementById("posts").scrollIntoView();
     }
   });
+}
+
+/* Correo: se monta aquí para que no aparezca escrito entero en el HTML.
+   En index.html:  <a href="#" id="correo" data-u="USUARIO" data-d="dominio.com">Email</a> */
+const correo = document.getElementById("correo");
+if(correo && correo.dataset.u && correo.dataset.d){
+  correo.href = "mailto:" + correo.dataset.u + "@" + correo.dataset.d;
 }
 
 document.getElementById("year").textContent = new Date().getFullYear();
