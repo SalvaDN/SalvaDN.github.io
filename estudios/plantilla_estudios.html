@@ -17,6 +17,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 <!-- Las rutas llevan ../ porque esta página está dentro de retos/ -->
 <link rel="stylesheet" href="../css/style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23050b17'/%3E%3Ctext x='32' y='47' font-size='44' font-family='monospace' font-weight='bold' text-anchor='middle' fill='%237a8f3a'%3ES%3C/text%3E%3C/svg%3E">
 </head>
 <body>
 
@@ -24,10 +25,10 @@
   <a class="logo" href="../index.html">PortFolio</a>
   <nav>
     <a href="../index.html">Inicio</a>
-    <a href="../index.html#posts">Posts</a>
-    <a href="../index.html#posts">Categorías</a>
-    <a href="../index.html#posts">Tags</a>
-    <a href="../index.html#sobre-mi">Sobre mí</a>
+    <a href="../index.html?tipo=Reto">Retos</a>
+    <a href="../index.html?tipo=Proyecto">Proyectos</a>
+    <a href="../index.html?tipo=Estudio">Estudios</a>
+    <a href="../sobremi/sobremi.html">Sobre mí</a>
   </nav>
 </header>
 
@@ -62,7 +63,7 @@
   </ul>
 </main>
 
-<footer>© <span id="year"></span> salva · Writeups de HackTheBox Sherlocks</footer>
+<footer>© <span id="year"></span> Salvador Navarro · Portfolio · Writeups · Proyectos</footer>
 <script>document.getElementById("year").textContent = new Date().getFullYear();</script>
 </body>
 </html>
