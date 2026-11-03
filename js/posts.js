@@ -5,6 +5,4 @@
    - os: Windows | Linux | Otro
    Copia retos/plantilla.html con el nombre del reto para crear su página.
    ============================================================ */
-const posts = [
-  
-];
+const posts = [];
