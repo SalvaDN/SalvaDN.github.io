@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title> Portfolio · Writeups · Proyectos </title>
+<title>Portfolio · Writeups · Proyectos</title>
+<meta name="description" content="Portfolio de Salvador Navarro: writeups de retos de ciberseguridad (DFIR, Blue Team), proyectos y estudios.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
@@ -15,17 +16,14 @@
   <a class="logo" href="index.html">PortFolio</a>
   <nav>
     <a href="index.html">Inicio</a>
-    
-    <!-- Menú desplegable de Categorías -->
-    <div class="dropdown">
-      <a href="#">Categorías ▾</a>
-      <div class="dropdown-content">
-        <a href="index.html?tipo=Retos">Retos</a>
+    <div class="dd">
+      <a href="#" class="dd-t">Categorías ▾</a>
+      <div class="dd-m">
+        <a href="index.html?tipo=Reto">Retos</a>
         <a href="index.html?tipo=Proyecto">Proyectos</a>
         <a href="index.html?tipo=Estudio">Estudios</a>
       </div>
     </div>
-
     <a href="sobremi/sobremi.html">Sobre mí</a>
   </nav>
 </header>
@@ -34,13 +32,15 @@
   <aside id="sobre-mi">
     <div class="avatar" aria-hidden="true">S<img src="img/Perfil.jpg" alt="" onerror="this.remove()"></div>
     <h2>Salvador Navarro</h2>
-    <p class="bio">DFIR | Análisis Forense Digital | Digital Forensics | Investigación de Ciber incidentes | Blue Team | Ciberseguridad Defensiva | Investigación Técnica | Análisis de Artefactos | CISCO CCNA | THM | HTB | N2 LEVEL | Jugador de CTF | </p>
+    <p class="bio">DFIR | Análisis Forense Digital | Digital Forensics | Investigación de Ciber incidentes | Blue Team | Ciberseguridad Defensiva | Investigación Técnica | Análisis de Artefactos | CISCO CCNA | THM | HTB | N2 LEVEL | Jugador de CTF</p>
     <ul>
-      <li><a href="#"><svg class="i" viewBox="0 0 16 16"><path d="M8 0a5 5 0 0 0-5 5c0 3.5 5 11 5 11s5-7.5 5-11a5 5 0 0 0-5-5Zm0 7a2 2 0 1 1 0-4 2 2 0 0 1 0 4Z"/></svg>España</a></li>
-      <li><a href="mailto:navarromontoyasalvador@gmail.com"><svg class="i" viewBox="0 0 16 16"><path d="M2 3h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Zm.5 1.3L8 8.4l5.5-4.1V4h-11Z"/></svg>Email</a></li>
+      <li><span><svg class="i" viewBox="0 0 16 16"><path d="M8 0a5 5 0 0 0-5 5c0 3.5 5 11 5 11s5-7.5 5-11a5 5 0 0 0-5-5Zm0 7a2 2 0 1 1 0-4 2 2 0 0 1 0 4Z"/></svg>España</span></li>
+      <!-- Correo (opcional): descomenta y pon un alias SOLO para la web. Se monta con JavaScript en js/main.js.
+      <li><a href="#" id="correo" data-u="ALIAS" data-d="dominio.com"><svg class="i" viewBox="0 0 16 16"><path d="M2 3h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Zm.5 1.3L8 8.4l5.5-4.1V4h-11Z"/></svg>Email</a></li>
+      -->
       <li><a href="https://github.com/SalvaDN"><svg class="i" viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>GitHub</a></li>
       <li><a href="https://www.linkedin.com/in/salvador-n-496a6581/"><svg class="i" viewBox="0 0 16 16"><path d="M2 1h12a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1Zm1.600 5v6.500h2V6Zm1-3.100a1.200 1.200 0 1 0 0 2.400 1.200 1.200 0 0 0 0-2.400ZM7.200 6v6.500h2V9.200c0-1 .5-1.500 1.200-1.500s1.100.5 1.100 1.500v3.300h2V8.800c0-1.800-.9-2.900-2.400-2.900-.9 0-1.500.4-1.900 1V6Z"/></svg>LinkedIn</a></li>
-      <li><a href="https://profile.hackthebox.com/profile/019fa324-9387-7324-8992-da5f22a2d64e?utm_medium=copy_url"><svg class="i" viewBox="0 0 16 16"><path d="M8.200.2a.5.5 0 0 0-.4 0l-6 2.600A.5.5 0 0 0 1.500 3.300v9.400c0 .2.1.4.3.5l6 2.600c.1.1.3.1.4 0l6-2.600c.2-.1.3-.3.3-.5V3.300a.5.5 0 0 0-.3-.5Z"/></svg>HackTheBox</a></li>
+      <li><a href="https://profile.hackthebox.com/profile/019fa324-9387-7324-8992-da5f22a2d64e"><svg class="i" viewBox="0 0 16 16"><path d="M8.200.2a.5.5 0 0 0-.4 0l-6 2.600A.5.5 0 0 0 1.500 3.300v9.400c0 .2.1.4.3.5l6 2.600c.1.1.3.1.4 0l6-2.600c.2-.1.3-.3.3-.5V3.300a.5.5 0 0 0-.3-.5Z"/></svg>HackTheBox</a></li>
     </ul>
   </aside>
 
@@ -52,7 +52,12 @@
   </main>
 </div>
 
-<footer>© <span id="year"></span> Salvador Navarro · Portfolio · Writeups · Proyectos </footer>
+<footer>© <span id="year"></span> Salvador Navarro · Portfolio · Writeups · Proyectos</footer>
+
+<script src="js/posts.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
 
 <script src="js/posts.js"></script>
 <script src="js/main.js"></script>
