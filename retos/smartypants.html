@@ -81,11 +81,11 @@
   <p>Para el acceso por RDP abrí el log <code>Microsoft-Windows-TerminalServices-RemoteConnectionManager%4Operational.evtx</code>, que registra las autenticaciones de usuario en Escritorio remoto. Filtré por el 24/01/2025 y abrí el evento en <b>Detalles → Vista XML</b>, porque el Visor de eventos muestra la hora local y el XML trae el <code>SystemTime</code> en UTC (la <code>Z</code> final).</p>
   <pre><code>&lt;TimeCreated SystemTime="2025-01-24T10:15:14.4560120Z" /&gt;</code></pre>
   <figure>
-    <img src="../img/Pasted%20image%2020261103112410.png" alt="Evento de RemoteConnectionManager con el acceso RDP">
+    <img src="img/Pasted%20image%2020261103112410.png" alt="Evento de RemoteConnectionManager con el acceso RDP">
     <figcaption>Evento de autenticación RDP en el log de RemoteConnectionManager.</figcaption>
   </figure>
   <figure>
-    <img src="../img/Pasted%20image%2020261103112722.png" alt="Vista XML del evento con el SystemTime en UTC">
+    <img src="img/Pasted%20image%2020261103112722.png" alt="Vista XML del evento con el SystemTime en UTC">
     <figcaption>Vista XML del evento: la hora en UTC.</figcaption>
   </figure>
   <p class="respuesta"><b>Respuesta:</b> <code>2025-01-24 10:15:14</code></p>
@@ -94,7 +94,7 @@
   <div class="pregunta"><b>Pregunta:</b> The attacker downloaded a few utilities that aided them for their sabotage and extortion operation. What was the first tool they downloaded and installed?</div>
   <p>Aquí entra el log de SmartScreen Debug. Lo ordené de más antiguo a más reciente y miré los eventos posteriores al login (10:15:14 UTC), descartando el ruido del sistema. La primera utilidad que aparece es WinRAR, a las 10:17:14, solo dos minutos después de entrar.</p>
   <figure>
-    <img src="../img/Pasted%20image%2020261103113513.png" alt="Evento de SmartScreen Debug con la descarga de WinRAR">
+    <img src="img/Pasted%20image%2020261103113513.png" alt="Evento de SmartScreen Debug con la descarga de WinRAR">
     <figcaption>Primer ejecutable descargado tras el login: WinRAR.</figcaption>
   </figure>
   <p class="respuesta"><b>Respuesta:</b> <code>WinRAR</code> (10:17:14 UTC)</p>
@@ -105,7 +105,7 @@
   <pre><code>{"$type":"isFileSupported","executionTime":"8701","path":"C:\\Users\\Dutch\\Downloads\\Everything.exe","size":"1778192"}</code></pre>
   <p>Al quitar el escapado del JSON, la ruta queda con barras simples.</p>
   <figure>
-    <img src="../img/Pasted%20image%2020261103114436.png" alt="Evento de SmartScreen con la ruta de Everything.exe">
+    <img src="img/Pasted%20image%2020261103114436.png" alt="Evento de SmartScreen con la ruta de Everything.exe">
     <figcaption>Evento <code>isFileSupported</code> de <code>Everything.exe</code>.</figcaption>
   </figure>
   <p class="respuesta"><b>Respuesta:</b> <code>C:\Users\Dutch\Downloads\Everything.exe</code></p>
@@ -115,7 +115,7 @@
   <p>Con el mismo evento de la tarea anterior, abrí la Vista XML y copié el <code>SystemTime</code>:</p>
   <pre><code>&lt;TimeCreated SystemTime="2025-01-24T10:17:33.5613231Z" /&gt;</code></pre>
   <figure>
-    <img src="../img/Pasted%20image%2020261103114753.png" alt="Vista XML del evento de Everything.exe con el SystemTime">
+    <img src="img/Pasted%20image%2020261103114753.png" alt="Vista XML del evento de Everything.exe con el SystemTime">
     <figcaption>Hora de ejecución de Everything en la Vista XML.</figcaption>
   </figure>
   <p class="respuesta"><b>Respuesta:</b> <code>2025-01-24 10:17:33</code></p>
@@ -124,7 +124,7 @@
   <div class="pregunta"><b>Pregunta:</b> The utility was used to search for critical and confidential documents stored on the host, which the attacker could steal and extort the victim. What was the first document that the attacker got their hands on and breached the confidentiality of that document?</div>
   <p>Tras ejecutar Everything, busqué en el log de SmartScreen los documentos abiertos a continuación, dentro de la carpeta de documentos de Dutch. El primero en aparecer fue un PDF de auditoría relacionado con el Ministerio de Defensa.</p>
   <figure>
-    <img src="../img/Pasted%20image%2020261103114935.png" alt="Evento de SmartScreen con el primer documento accedido">
+    <img src="img/Pasted%20image%2020261103114935.png" alt="Evento de SmartScreen con el primer documento accedido">
     <figcaption>Primer documento confidencial al que accede el atacante.</figcaption>
   </figure>
   <p class="respuesta"><b>Respuesta:</b> <code>C:\Users\Dutch\Documents\2025- Board of directors Documents\Ministry Of Defense Audit.pdf</code></p>
@@ -133,7 +133,7 @@
   <div class="pregunta"><b>Pregunta:</b> Find the name and path of second stolen document as well.</div>
   <p>Siguiendo la secuencia de eventos en la misma carpeta, el segundo documento al que accede es el de presupuesto confidencial.</p>
   <figure>
-    <img src="../img/Pasted%20image%2020261103115200.png" alt="Evento de SmartScreen con el segundo documento accedido">
+    <img src="img/Pasted%20image%2020261103115200.png" alt="Evento de SmartScreen con el segundo documento accedido">
     <figcaption>Segundo documento confidencial.</figcaption>
   </figure>
   <p class="respuesta"><b>Respuesta:</b> <code>C:\Users\Dutch\Documents\2025- Board of directors Documents\2025-BUDGET-ALLOCATION-CONFIDENTIAL.pdf</code></p>
@@ -142,7 +142,7 @@
   <div class="pregunta"><b>Pregunta:</b> The attacker installed a Cloud utility as well to steal and exfiltrate the documents. What is name of the cloud utility?</div>
   <p>Revisando las herramientas descargadas después de localizar los documentos, aparece un cliente de almacenamiento en la nube: MEGAsync, el cliente de sincronización del servicio MEGA, apto para sacar archivos del equipo.</p>
   <figure>
-    <img src="../img/Pasted%20image%2020261103115514.png" alt="Evento de SmartScreen con MEGAsync">
+    <img src="img/Pasted%20image%2020261103115514.png" alt="Evento de SmartScreen con MEGAsync">
     <figcaption>Descarga de MEGAsync en el log de SmartScreen.</figcaption>
   </figure>
   <p class="respuesta"><b>Respuesta:</b> <code>MEGAsync</code></p>
@@ -151,7 +151,7 @@
   <div class="pregunta"><b>Pregunta:</b> When was this utility executed?</div>
   <p>Con el evento de MEGAsync abierto, tomé el <code>SystemTime</code> de la Vista XML, que está en UTC.</p>
   <figure>
-    <img src="../img/Pasted%20image%2020261103115615.png" alt="Vista XML del evento de MEGAsync con el SystemTime">
+    <img src="img/Pasted%20image%2020261103115615.png" alt="Vista XML del evento de MEGAsync con el SystemTime">
     <figcaption>Hora de ejecución de MEGAsync.</figcaption>
   </figure>
   <p class="respuesta"><b>Respuesta:</b> <code>2025-01-24 10:22:19</code></p>
@@ -162,7 +162,7 @@
   <pre><code>{"$type":"isFileSupported","executionTime":"5736","path":"C:\\Program Files\\File Shredder\\Shredder.exe","size":"2454528"}</code></pre>
   <p><code>Shredder.exe</code> es el ejecutable de File Shredder, un programa que borra archivos de forma segura y permanente, sobrescribiéndolos para que no se puedan recuperar. Encaja con el enunciado. La plataforma pide el nombre de la utilidad, no la ruta.</p>
   <figure>
-    <img src="../img/Pasted%20image%2020261103120135.png" alt="Evento de SmartScreen con Shredder.exe">
+    <img src="img/Pasted%20image%2020261103120135.png" alt="Evento de SmartScreen con Shredder.exe">
     <figcaption>Evento <code>isFileSupported</code> de <code>Shredder.exe</code> (11:27:09 hora local, 10:27:09 UTC).</figcaption>
   </figure>
   <p class="respuesta"><b>Respuesta:</b> <code>File Shredder</code></p>
@@ -171,7 +171,7 @@
   <div class="pregunta"><b>Pregunta:</b> The attacker cleared 2 important logs, thinking they covered all their tracks. When was the security log cleared?</div>
   <p>El borrado del log de seguridad no queda en SmartScreen. Se registra en <code>Security.evtx</code> con el evento <b>1102</b> (<i>The audit log was cleared</i>). Filtré por ese ID y copié el <code>SystemTime</code> de la Vista XML. El otro log borrado se registraría con el evento 104 en <code>System.evtx</code>.</p>
   <figure>
-    <img src="../img/Pasted%20image%2020261103120801.png" alt="Evento 1102 en Security.evtx">
+    <img src="img/Pasted%20image%2020261103120801.png" alt="Evento 1102 en Security.evtx">
     <figcaption>Evento 1102: borrado del log de seguridad.</figcaption>
   </figure>
   <p class="respuesta"><b>Respuesta:</b> <code>2025-01-24 10:28:41</code></p>
