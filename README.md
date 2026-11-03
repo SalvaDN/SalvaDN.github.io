@@ -37,8 +37,8 @@ python -m http.server 8000
 ```
 
 Uso de la plantilla
-Puedes usar la estructura y el código de este repositorio como base para tu propio portfolio o proyecto personal, siempre sin ánimo de lucro.
-No está permitido venderla, incluirla en un producto o servicio de pago, ni usarla para trabajos de clientes o con fines comerciales. Si la usas, mantén el aviso de licencia y un enlace a este repositorio.
+Puedes usar la estructura y el código de este repositorio como base para tu propio portfolio o proyecto personal, sin ánimo de lucro.
+Si la usas, mantén el aviso de licencia y un enlace a este repositorio.
 Esto solo cubre el código y la plantilla. Mis textos, writeups, imágenes y datos personales no forman parte de lo que se puede reutilizar: cámbialos por los tuyos.
 
 Licencia
