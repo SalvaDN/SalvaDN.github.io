@@ -14,6 +14,7 @@
 <!-- Opcionales: imagen (sustituye toda la tarjeta), icono (sustituye el círculo) y borrador -->
 <!-- <meta name="post:imagen" content="img/proyecto.png"> -->
 <!-- <meta name="post:borrador" content="si"> -->
+<meta name="description" content="Writeup de Salvador Navarro.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 <!-- Las rutas llevan ../ porque esta página está dentro de retos/ -->
@@ -26,9 +27,14 @@
   <a class="logo" href="../index.html">PortFolio</a>
   <nav>
     <a href="../index.html">Inicio</a>
-    <a href="../index.html?tipo=Reto">Retos</a>
-    <a href="../index.html?tipo=Proyecto">Proyectos</a>
-    <a href="../index.html?tipo=Estudio">Estudios</a>
+    <div class="dd">
+      <a href="#" class="dd-t">Categorías ▾</a>
+      <div class="dd-m">
+        <a href="../index.html?tipo=Reto">Retos</a>
+        <a href="../index.html?tipo=Proyecto">Proyectos</a>
+        <a href="../index.html?tipo=Estudio">Estudios</a>
+      </div>
+    </div>
     <a href="../sobremi/sobremi.html">Sobre mí</a>
   </nav>
 </header>
@@ -70,12 +76,6 @@
 </main>
 
 <footer>© <span id="year"></span> Salvador Navarro · Portfolio · Writeups · Proyectos</footer>
-<script>document.getElementById("year").textContent = new Date().getFullYear();</script>
-</body>
-</html>
-
-
-<footer>© <span id="year"></span> salva · Writeups de HackTheBox Sherlocks</footer>
 <script>document.getElementById("year").textContent = new Date().getFullYear();</script>
 </body>
 </html>
