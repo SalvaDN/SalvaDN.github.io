@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Genera js/posts.js leyendo las páginas de retos/, proyectos/ y estudios/.
+"""Genera js/posts.js y sitemap.xml leyendo las páginas de retos/, proyectos/ y estudios/.
 
 Cada página declara sus datos con etiquetas <meta name="post:..."> en el <head>.
 Se ejecuta solo en GitHub Actions cada vez que subes algo, pero también
@@ -10,8 +10,13 @@ import json
 import re
 import sys
 from pathlib import Path
+from urllib.parse import quote
+from xml.sax.saxutils import escape
 
 RAIZ = Path(__file__).resolve().parent.parent
+BASE_URL = "https://salvadn.github.io"
+GENERAR_SITEMAP = False   # False = no se crea sitemap.xml (la web no quiere ser indexada). Pon True para activarlo.
+PAGINAS_FIJAS = ["", "sobremi/sobremi.html"]   # portada y Sobre mí (solo si existen)
 CARPETAS = {"retos": "Reto", "proyectos": "Proyecto", "estudios": "Estudio"}
 META = re.compile(r'<meta\s+name="post:([a-z]+)"\s+content="([^"]*)"\s*/?>', re.I)
 FECHA = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -52,6 +57,28 @@ def leer(ruta, carpeta):
     return post
 
 
+def escribir_sitemap(posts):
+    """Genera sitemap.xml con la portada, Sobre mí y todas las publicaciones."""
+    entradas = []
+    for ruta in PAGINAS_FIJAS:
+        if ruta == "" or (RAIZ / ruta).is_file():
+            entradas.append((f"{BASE_URL}/{quote(ruta)}", None))
+    for p in posts:
+        entradas.append((f"{BASE_URL}/{quote(p['url'])}", p["fecha"]))
+
+    lineas = ['<?xml version="1.0" encoding="UTF-8"?>',
+              '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
+    for url, fecha in entradas:
+        lineas.append("  <url>")
+        lineas.append(f"    <loc>{escape(url)}</loc>")
+        if fecha:
+            lineas.append(f"    <lastmod>{fecha}</lastmod>")
+        lineas.append("  </url>")
+    lineas.append("</urlset>")
+    (RAIZ / "sitemap.xml").write_text("\n".join(lineas) + "\n", encoding="utf-8")
+    print(f"sitemap.xml generado con {len(entradas)} direcciones")
+
+
 def main():
     posts = []
     for carpeta in CARPETAS:
@@ -74,12 +101,9 @@ def main():
     (RAIZ / "js").mkdir(exist_ok=True)
     (RAIZ / "js" / "posts.js").write_text(salida, encoding="utf-8")
     print(f"posts.js generado con {len(posts)} publicaciones")
+    if GENERAR_SITEMAP:
+        escribir_sitemap(posts)
 
 
 if __name__ == "__main__":
     sys.exit(main())
-
-
-if __name__ == "__main__":
-    sys.exit(main())
-
