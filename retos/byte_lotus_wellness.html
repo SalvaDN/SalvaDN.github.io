@@ -155,9 +155,9 @@ DynamoDB → GetItem *y* Scan</code></pre>
   --region us-east-1
 
 {
-  "IdentityId": "us-east-1:4d571309-b041-c7d5-dafb-8c5ec7c00497",
+  "IdentityId": "us-east-1:4d571309-b041-xxx5-dafb-8c5ec7xxxxx",
   "Credentials": {
-    "AccessKeyId": "ASIAU2VYTBGYMVIGT7F7",
+    "AccessKeyId": "ASIAU2xxxxxxxxxxxxxx",
     "SecretKey": "&lt;redacted&gt;",
     "SessionToken": "&lt;redacted, ~2.6KB JWT-like token&gt;",
     "Expiration": "2026-07-30T02:45:44-04:00"
@@ -167,19 +167,19 @@ DynamoDB → GetItem *y* Scan</code></pre>
   de sesión, no de usuario IAM permanente), pero son completamente funcionales mientras no expiren — exactamente
   igual que si fueran robadas de un usuario real.</p>
   <p><strong>Paso 3 — Cargar credenciales en el entorno:</strong></p>
-  <pre><code>export AWS_ACCESS_KEY_ID="ASIAU2VYTBGYMVIGT7F7"
+  <pre><code>export AWS_ACCESS_KEY_ID="ASIAU2VYTBGYMVIxxxxx"
 export AWS_SECRET_ACCESS_KEY="&lt;secret&gt;"
 export AWS_SESSION_TOKEN="&lt;session token&gt;"</code></pre>
   <p><strong>Paso 4 — Confirmar la identidad asumida:</strong></p>
   <pre><code>aws sts get-caller-identity --region us-east-1
 
 {
-    "UserId": "AROAU2VYTBGYCEB4JME2S:CognitoIdentityCredentials",
-    "Account": "332173347248",
-    "Arn": "arn:aws:sts::332173347248:assumed-role/complimentary-cognito-unauth-role/CognitoIdentityCredentials"
+    "UserId": "AROAU2VYTBGYCEB4Jxxxx:CognitoIdentityCredentials",
+    "Account": "33217334xxxx",
+    "Arn": "arn:aws:sts::3321733xxxxx:assumed-role/complimentary-cognito-unauth-role/CognitoIdentityCredentials"
 }</code></pre>
   <p>Esto confirma que, sin ninguna autenticación, se está operando como el rol
-  <code>complimentary-cognito-unauth-role</code> en la cuenta AWS <code>332173347248</code> — el mismo rol que usa
+  <code>complimentary-cognito-unauth-role</code> en la cuenta AWS <code>33217334xxxx</code> — el mismo rol que usa
   legítimamente la propia aplicación para cualquier visitante.</p>
   <p><strong>Paso 5 — Replicar el comportamiento legítimo (GetItem):</strong> esta es la operación que
   <code>app.js</code> ejecuta de forma legítima: lectura acotada a un único ítem por clave primaria.</p>
