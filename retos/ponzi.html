@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ponzi Portfolio — Race Condition en el sistema de staking · Portfolio</title>
+<meta name="post:titulo" content="Ponzi Portfolio — Race Condition en el sistema de staking">
+<meta name="post:fecha" content="2026-08-04">
+<meta name="post:resumen" content="El endpoint POST /claim de una app de staking simulado no gestiona de forma atómica la comprobación y la actualización del reward, lo que permite explotar una race condition (TOCTOU) con Burp Suite para cobrar el mismo reward varias veces en la misma ventana de 24h y desbloquear el Whale Vault.">
+<meta name="post:tags" content="Race Condition, TOCTOU, Burp Suite, Business Logic">
+<meta name="post:plataforma" content="TryHackMe">
+<meta name="post:os" content="Linux">
+<meta name="description" content="Writeup de Salvador Navarro.">
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex, noai, noimageai">
+<meta name="googlebot" content="noindex, nofollow, noarchive, nosnippet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23050b17'/%3E%3Ctext x='32' y='47' font-size='44' font-family='monospace' font-weight='bold' text-anchor='middle' fill='%237a8f3a'%3ES%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+
+<header>
+  <a class="logo" href="../index.html">PortFolio</a>
+  <nav>
+    <a href="../index.html">Inicio</a>
+    <div class="dd">
+      <a href="#" class="dd-t">Categorías ▾</a>
+      <div class="dd-m">
+        <a href="../index.html?tipo=Reto">Retos</a>
+        <a href="../index.html?tipo=Proyecto">Proyectos</a>
+        <a href="../index.html?tipo=Estudio">Estudios</a>
+      </div>
+    </div>
+    <a href="../sobremi/sobremi.html">Sobre mí</a>
+  </nav>
+</header>
+
+<main class="reto">
+  <a class="volver" href="../index.html#posts">← Volver a los posts</a>
+
+  <h1>Ponzi Portfolio — Race Condition en el sistema de staking</h1>
+  <div class="ficha">
+    <span><strong>Fecha:</strong> 4 ago 2026</span>
+    <span><strong>Categoría:</strong> Web / Business Logic</span>
+    <span><strong>Sistema:</strong> Linux</span>
+    <span><strong>Plataforma:</strong> TryHackMe (HackerHolidays · Byte Lotus · Día 8)</span>
+  </div>
+
+  <h2>Resumen</h2>
+  <p>"Ponzi Portfolio" es una app de staking simulado: cada usuario puede reclamar 50 PONZI cada 24 horas
+  pulsando "Claim Reward". Alcanzando 150 PONZI se desbloquea un "Whale Vault" con una recompensa exclusiva. El
+  endpoint <code>POST /claim</code> no gestiona de forma atómica la comprobación de "¿puede reclamar?" y la
+  actualización del saldo, lo que abre una ventana de carrera (race condition): enviando varias peticiones de
+  claim al mismo tiempo, el servidor las procesa todas antes de que ninguna termine de marcar el reward como "ya
+  reclamado", permitiendo cobrar el mismo reward múltiples veces en la misma ventana de 24h.</p>
+
+  <h2>Escenario</h2>
+  <p>El objetivo es una plataforma de staking con registro propio. Tras crear una cuenta, el reto consiste en
+  cruzar el umbral de 150 PONZI necesario para desbloquear el "Whale Vault" y obtener la flag, sin esperar los
+  ciclos normales de 24h entre reclamaciones.</p>
+
+  <h2>Artefactos y herramientas</h2>
+  <ul>
+    <li><code>gobuster</code> — enumeración de rutas</li>
+    <li>JavaScript del cliente (<code>dashboard.js</code>) — revela la lógica y los umbrales de la app</li>
+    <li>Burp Suite (Repeater, grupos de pestañas, <em>Send group (parallel)</em>) — disparo de peticiones concurrentes</li>
+  </ul>
+
+  <h2>Análisis</h2>
+
+  <h3>1. Reconocimiento inicial</h3>
+  <div class="pregunta"><b>Objetivo:</b> registrarse en la aplicación y enumerar rutas adicionales.</div>
+  <p>El objetivo redirige a <code>/auth/login</code> — "Ponzi Portfolio: Stack your bags. Claim your yield." —
+  con opción de registro propio. Tras crear una cuenta y autenticarse, Gobuster enumera rutas adicionales:</p>
+  <pre><code>gobuster dir -u http://&lt;TARGET_IP&gt;:3000 \
+  -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt \
+  -x js,json,txt -t 40</code></pre>
+  <figure>
+    <img src="img/ponzi_1.webp" alt="Formulario de login de Ponzi Portfolio con opción de registro">
+    <figcaption>Login con opción de registro propio (/auth/login, enlace "Register").</figcaption>
+  </figure>
+  <figure>
+    <img src="img/ponzi_2.webp" alt="Salida de Gobuster mostrando las rutas /js/, /css/ y /vault">
+    <figcaption>Rutas relevantes: /js/, /css/ y, sobre todo, /vault → 401 (existe, requiere autorización adicional — no basta con estar logueado).</figcaption>
+  </figure>
+
+  <h3>2. La mecánica de la app: staking y umbral Whale</h3>
+  <div class="pregunta"><b>Objetivo:</b> entender la lógica de negocio y localizar el umbral objetivo.</div>
+  <p>El dashboard muestra el saldo actual, precios de mercado y un botón "Claim Reward". El archivo
+  <code>/js/dashboard.js</code>, accesible sin restricción, revela la lógica del cliente y una constante clave:
+  <code>const WHALE_THRESHOLD = 150;</code> — el objetivo numérico a alcanzar.</p>
+  <figure>
+    <img src="img/ponzi_3.webp" alt="Dashboard mostrando balance 0 PONZI, tier Shrimp y Staking Rewards">
+    <figcaption>Balance inicial: 0 PONZI, tier "Shrimp". Sección "Staking Rewards": 50 PONZI cada 24h.</figcaption>
+  </figure>
+  <figure>
+    <img src="img/ponzi_4.webp" alt="Depurador del navegador mostrando el código de dashboard.js con WHALE_THRESHOLD">
+    <figcaption>const WHALE_THRESHOLD = 150; — el objetivo numérico a alcanzar.</figcaption>
+  </figure>
+  <p>Consultando el endpoint que el propio JS usa para poblar el dashboard
+  (<code>fetch('/dashboard/api/me')</code>): <code>GET /dashboard/api/me</code> devuelve
+  <code>balance: 0, tier: "Shrimp", whaleThreshold: 150, canClaim: true</code>.</p>
+  <figure>
+    <img src="img/ponzi_5.webp" alt="Respuesta JSON de /dashboard/api/me con balance, tier y whaleThreshold">
+    <figcaption>GET /dashboard/api/me → balance: 0, tier: "Shrimp", whaleThreshold: 150, canClaim: true.</figcaption>
+  </figure>
+  <p>El código completo de <code>dashboard.js</code> confirma cómo se gestiona el botón de claim en el cliente:
+  tras un claim, deshabilita el botón (<code>claimBtn.disabled = true</code>) y muestra una cuenta atrás — pero
+  esto es solo control visual, no impide mandar la petición <code>POST /claim</code> por otra vía. Cualquier
+  control implementado solo en JavaScript del cliente es, por definición, evitable: el servidor es quien debe
+  garantizar las reglas de negocio de verdad.</p>
+  <figure>
+    <img src="img/ponzi_6.webp" alt="Código fuente completo de dashboard.js en el depurador del navegador">
+    <figcaption>Tras un claim, el cliente deshabilita el botón y muestra una cuenta atrás — pero esto es solo control visual, no impide mandar la petición POST /claim por otra vía.</figcaption>
+  </figure>
+
+  <h3>3. Concepto: Race Condition (TOCTOU)</h3>
+  <p>Cuando una operación que debería ser indivisible ("comprobar algo y luego actualizarlo") se implementa en
+  realidad como dos pasos separados, se abre una ventana de tiempo entre esos pasos en la que el estado puede
+  ser leído por otra petición antes de que la primera termine de escribir su cambio. Esto se conoce como TOCTOU
+  (Time-Of-Check to Time-Of-Use). El endpoint <code>/claim</code> probablemente hace, en pseudocódigo:</p>
+  <pre><code>1. leer usuario de la base de datos
+2. si (usuario.canClaim === true):
+3.     usuario.balance += 50
+4.     usuario.canClaim = false   // se marca "ya reclamado" AL FINAL
+5. guardar usuario</code></pre>
+  <p>Si el paso 1 ocurre para tres peticiones distintas antes de que ninguna haya llegado al paso 4, las tres
+  verán <code>canClaim === true</code> y las tres sumarán 50 al balance, aunque solo se pulsó "Claim" una vez,
+  mandado tres veces de forma simultánea.</p>
+
+  <h3>4. Capturar la petición de claim</h3>
+  <div class="pregunta"><b>Objetivo:</b> identificar el endpoint exacto a atacar en paralelo.</div>
+  <p>Con el proxy de Burp activo se captura una petición autenticada cualquiera para confirmar la cookie de
+  sesión válida, y después se pulsa el botón real "Claim Reward" para revelar el endpoint objetivo:</p>
+  <pre><code>GET /dashboard/api/me HTTP/1.1
+Host: &lt;TARGET_IP&gt;:3000
+Cookie: connect.sid=s%3AhZOoD1QqCvyFI_IiVnrv_F1bHUlqmgMf...</code></pre>
+  <figure>
+    <img src="img/ponzi_7.webp" alt="Petición GET capturada en Burp con la cookie de sesión activa">
+    <figcaption>Petición inicial capturada, confirmando la cookie de sesión activa.</figcaption>
+  </figure>
+  <pre><code>POST /claim HTTP/1.1
+Host: &lt;TARGET_IP&gt;:3000
+Content-Length: 0
+Origin: http://&lt;TARGET_IP&gt;:3000
+Referer: http://&lt;TARGET_IP&gt;:3000/dashboard
+Cookie: connect.sid=&lt;sesión válida&gt;</code></pre>
+  <figure>
+    <img src="img/ponzi_8.webp" alt="Petición POST /claim capturada en Burp, sin body, autenticada solo por cookie">
+    <figcaption>POST /claim — sin body, autenticado solo por cookie. Este es el endpoint a atacar en paralelo.</figcaption>
+  </figure>
+
+  <h3>5. Preparar y disparar el ataque en Burp Suite</h3>
+  <div class="pregunta"><b>Objetivo:</b> enviar varias peticiones de claim exactamente al mismo tiempo.</div>
+  <p>Con clic derecho → "Send to Repeater" se envía la petición, y se duplica la pestaña tantas veces como
+  peticiones simultáneas se quieran mandar — en este caso, 3 copias idénticas de <code>POST /claim</code>.</p>
+  <figure>
+    <img src="img/ponzi_9.webp" alt="Tres pestañas de Burp Repeater con copias idénticas de POST /claim">
+    <figcaption>Tres pestañas del Repeater (3, 4, 5), cada una con una copia exacta de POST /claim y la misma cookie de sesión.</figcaption>
+  </figure>
+  <p>Burp Suite permite seleccionar varias pestañas de Repeater y agruparlas ("Add tab to group"). Una vez
+  agrupadas, aparece la opción "Send group (parallel)" en vez del botón normal de "Send" — esto envía todas las
+  peticiones del grupo simultáneamente, por diseño, abriendo varias conexiones TCP a la vez en vez de
+  completar el viaje de ida y vuelta de cada una antes de enviar la siguiente (que es lo que ocurre al enviarlas
+  manualmente una a una, por rápido que se haga).</p>
+  <figure>
+    <img src="img/ponzi_10.webp" alt="Grupo de 3 peticiones en Burp Repeater con el botón Send group (parallel)">
+    <figcaption>"Group 1" con las 3 peticiones agrupadas, y el botón "Send group (parallel)" — la pieza técnica clave de todo el ataque.</figcaption>
+  </figure>
+
+  <h3>6. Resultado: double-spend confirmado</h3>
+  <p>Con el grupo preparado, se pulsa "Send group (parallel)". La respuesta de (al menos) una de las peticiones
+  del grupo confirma el éxito del ataque:</p>
+  <pre><code>HTTP/1.1 200 OK
+{"message":"Staking reward claimed successfully.","reward":50,"newBalance":150,"tier":"Whale","priceSnapshot":4.2}</code></pre>
+  <figure>
+    <img src="img/ponzi_11.webp" alt="Respuesta HTTP 200 mostrando newBalance 150 y tier Whale">
+    <figcaption>El campo newBalance: 150 es la prueba definitiva: un único ciclo de 24h, pensado para dar 50 PONZI, ha entregado 150 — exactamente 3× el reward normal.</figcaption>
+  </figure>
+  <p class="respuesta"><b>Resultado:</b> balance de 150 PONZI y cambio de tier a "Whale" en un único ciclo de 24h.</p>
+
+  <h3>7. Desbloquear el Whale Vault y la flag</h3>
+  <div class="pregunta"><b>Objetivo:</b> abrir el Whale Vault con el umbral cruzado y capturar la flag.</div>
+  <p>Recargando el dashboard, la barra de progreso hacia el Whale Vault aparece completa ("150 / 150 PONZI"), y
+  al pulsar "Open Vault" se revela la recompensa exclusiva.</p>
+  <figure>
+    <img src="img/ponzi_12.webp" alt="Barra de progreso del Whale Vault completa, botón Open Vault habilitado">
+    <figcaption>"150 / 150 PONZI" — umbral alcanzado, botón "Open Vault" habilitado.</figcaption>
+  </figure>
+  <figure>
+    <img src="img/ponzi_13.webp" alt="Dashboard final con la flag en el Whale Vault y cooldown de 24h restaurado">
+    <figcaption>Flag entregada en el Whale Vault; el cooldown de 24h ya activo confirma que el sistema vuelve a su comportamiento normal tras el ataque.</figcaption>
+  </figure>
+  <p class="respuesta"><b>Flag:</b> <code>THM{t0w3l_0n_th3_sunb3d_d0ubl3_sp3nt}</code></p>
+
+  <h2>Por qué exactamente 3 peticiones</h2>
+  <p>El diseño del reto está calibrado con precisión: el umbral (150) es un múltiplo exacto del reward (50), por
+  lo que 3 peticiones simultáneas es el número mínimo necesario para cruzar el umbral en un único ciclo de
+  carrera, sin desperdiciar peticiones de más. Mandar solo 2 hubiera dejado el balance en 100 (insuficiente);
+  mandar muchas más de 3 no aporta nada extra una vez superado el umbral, y en la práctica solo aumenta el riesgo
+  de que alguna petición llegue ligeramente desincronizada y no gane la ventana de carrera.</p>
+
+  <h2>Cadena de ataque (kill chain)</h2>
+  <table>
+    <tr><th>#</th><th>Paso</th></tr>
+    <tr><td>1</td><td>Registro y acceso normal a la aplicación de staking simulado</td></tr>
+    <tr><td>2</td><td>Reconocimiento: Gobuster revela /vault (401, protegido); dashboard.js revela WHALE_THRESHOLD = 150</td></tr>
+    <tr><td>3</td><td>Confirmación de la mecánica: /dashboard/api/me confirma balance 0 y reward de 50 PONZI cada 24h</td></tr>
+    <tr><td>4</td><td>Captura del endpoint objetivo: POST /claim, autenticado solo por cookie de sesión</td></tr>
+    <tr><td>5</td><td>Preparación: 3 copias de la petición en Burp Repeater, agrupadas en un mismo grupo</td></tr>
+    <tr><td>6</td><td>Explotación: "Send group (parallel)" dispara las 3 peticiones simultáneamente, explotando la ventana de carrera entre comprobación y actualización de canClaim</td></tr>
+    <tr><td>7</td><td>Resultado: balance final de 150 PONZI en un único ciclo de 24h, cruzando el umbral Whale</td></tr>
+    <tr><td>8</td><td>Flag obtenida al abrir el Whale Vault desbloqueado</td></tr>
+  </table>
+
+  <h2>Conclusiones</h2>
+  <p>El fallo no está en ninguna validación de tipos ni en criptografía rota, sino en tratar como atómica una
+  operación que en realidad son dos pasos separados: leer el estado y escribirlo. Cualquier endpoint que
+  modifique saldo, stock, cupones o cualquier recurso limitado debe garantizar esa atomicidad a nivel de base de
+  datos (una única sentencia de "comprobar y actualizar", o una transacción con el aislamiento adecuado), nunca
+  confiando en que el cliente respete los tiempos de espera o en que un botón se deshabilite en el navegador.
+  Añadir rate limiting sobre endpoints sensibles como <code>/claim</code> reduce la superficie de este tipo de
+  ataques, aunque no sustituye a una operación verdaderamente atómica en el servidor.</p>
+</main>
+
+<footer>© <span id="year"></span> Salvador Navarro · Portfolio · Writeups · Proyectos</footer>
+<script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>
