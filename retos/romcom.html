@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RomCom / CVE-2025-8088 — de un .rar con path traversal a un backdoor persistente · Portfolio</title>
+<meta name="post:titulo" content="RomCom / CVE-2025-8088 — de un .rar con path traversal a un backdoor persistente">
+<meta name="post:fecha" content="AAAA-MM-DD">
+<meta name="post:resumen" content="Análisis forense (triage de $MFT y $UsnJrnl) de un incidente en un hospital ficticio: un .rar explota CVE-2025-8088 (path traversal vía ADS en WinRAR) para escribir un backdoor y su persistencia en Startup fuera de la carpeta de extracción, mientras un PDF señuelo distrae al usuario, en una cadena completa de 84 segundos.">
+<meta name="post:tags" content="DFIR, CVE-2025-8088, WinRAR, RomCom, Persistencia, MITRE ATT&amp;CK">
+<meta name="post:plataforma" content="HackTheBox Sherlock">
+<meta name="post:os" content="Windows">
+<meta name="description" content="Writeup de Salvador Navarro.">
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex, noai, noimageai">
+<meta name="googlebot" content="noindex, nofollow, noarchive, nosnippet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23050b17'/%3E%3Ctext x='32' y='47' font-size='44' font-family='monospace' font-weight='bold' text-anchor='middle' fill='%237a8f3a'%3ES%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+
+<header>
+  <a class="logo" href="../index.html">PortFolio</a>
+  <nav>
+    <a href="../index.html">Inicio</a>
+    <div class="dd">
+      <a href="#" class="dd-t">Categorías ▾</a>
+      <div class="dd-m">
+        <a href="../index.html?tipo=Reto">Retos</a>
+        <a href="../index.html?tipo=Proyecto">Proyectos</a>
+        <a href="../index.html?tipo=Estudio">Estudios</a>
+      </div>
+    </div>
+    <a href="../sobremi/sobremi.html">Sobre mí</a>
+  </nav>
+</header>
+
+<main class="reto">
+  <a class="volver" href="../index.html#posts">← Volver a los posts</a>
+
+  <h1>RomCom / CVE-2025-8088 — de un .rar con path traversal a un backdoor persistente</h1>
+  <div class="ficha">
+    <span><strong>Fecha del incidente:</strong> 2 sep 2025</span>
+    <span><strong>Categoría:</strong> DFIR / Threat Intelligence</span>
+    <span><strong>Sistema:</strong> Windows</span>
+    <span><strong>Plataforma:</strong> HackTheBox Sherlock (RomCom)</span>
+  </div>
+
+  <h2>Resumen</h2>
+  <p>Caso de respuesta a incidentes sobre la estación de trabajo del Laboratorio de Investigación de un hospital
+  ficticio (Forela International Hospital). Una trabajadora recibió un archivo <code>.rar</code> que parecía
+  contener documentación del departamento de patología. Al extraerlo con WinRAR, una vulnerabilidad de
+  <strong>path traversal vía Alternate Data Streams (CVE-2025-8088)</strong> permitió escribir, fuera de la
+  carpeta de destino, un backdoor y un acceso directo de persistencia en la carpeta <code>Startup</code>, mientras
+  un PDF señuelo se abría con normalidad para no levantar sospechas. Toda la cadena de infección ocurre en una
+  ventana de <strong>84 segundos</strong>, hasta que Microsoft Defender genera la alerta que inicia la
+  investigación. El actor asociado a la campaña es <strong>RomCom</strong> (también conocido como "Paper
+  WereWolf").</p>
+
+  <h2>Escenario</h2>
+  <p>Solo se dispuso de una imagen de triage ligera en formato <code>.vhdx</code>, no navegable como sistema de
+  archivos completo. La evidencia disponible se limitó a tres artefactos NTFS extraídos manualmente: la tabla
+  maestra de archivos (<code>$MFT</code>) y el Registro de Cambios USN (<code>$UsnJrnl:$J</code> y
+  <code>:$Max</code>). El objetivo era reconstruir la cadena de eventos y el impacto únicamente a partir de esos
+  metadatos, sin acceso al contenido real de los binarios implicados.</p>
+
+  <h2>Artefactos y herramientas</h2>
+  <ul>
+    <li>FTK Imager — examen de la imagen <code>.vhdx</code> y exportación manual de artefactos NTFS</li>
+    <li><code>MFTECmd</code> (Eric Zimmerman Tools) — parseo de <code>$MFT</code> y <code>$UsnJrnl:$J</code> a CSV</li>
+    <li>Timeline Explorer — correlación cronológica de las entradas parseadas</li>
+  </ul>
+
+  <h2>Análisis</h2>
+
+  <h3>1. Metodología y cadena de custodia</h3>
+  <div class="pregunta"><b>Objetivo:</b> extraer y correlacionar los artefactos disponibles sin alterar la evidencia.</div>
+  <table>
+    <tr><th>Artefacto</th><th>Función</th><th>Herramienta / comando</th></tr>
+    <tr><td><code>$MFT</code></td><td>Metadatos de archivos: rutas, timestamps (0x10/0x30), tamaño, flags, ADS</td><td><code>MFTECmd.exe -f $MFT --csv</code></td></tr>
+    <tr><td><code>$UsnJrnl:$J</code></td><td>Registro cronológico de cambios (creación, renombrado, borrado, extensión)</td><td><code>MFTECmd.exe -f $J --csv</code></td></tr>
+    <tr><td><code>$UsnJrnl:$Max</code></td><td>Metadatos del propio journal (tamaño máximo asignado, ID)</td><td>No aplicable para la timeline</td></tr>
+  </table>
+  <p>La imagen fue analizada en modo solo lectura; los artefactos se exportaron con FTK Imager y se procesaron
+  con MFTECmd, revisando el resultado en Timeline Explorer, sin modificar la evidencia original. La
+  reconstrucción de la cadena de eventos se basa en los timestamps <code>Created0x10</code> de las entradas MFT
+  del archivo comprimido, sus copias, el documento señuelo, el backdoor y los <code>.lnk</code> generados en
+  <code>Recent</code> y <code>Startup</code>. Todos los timestamps están en UTC.</p>
+
+  <h3>2. Vulnerabilidad explotada: CVE-2025-8088</h3>
+  <div class="pregunta"><b>Objetivo:</b> entender cómo un .rar logra escribir archivos fuera de la carpeta de extracción.</div>
+  <p>El archivo <code>.rar</code> recibido estaba diseñado para abusar de una vulnerabilidad de
+  <strong>path traversal habilitada mediante Alternate Data Streams (ADS)</strong> en versiones de WinRAR
+  anteriores a la 7.13 (CWE-35). Esta técnica permite que, durante la extracción, uno o varios archivos ocultos
+  dentro del comprimido escriban su contenido fuera de la carpeta de destino seleccionada por el usuario, en
+  ubicaciones sensibles del sistema como la carpeta <code>Startup</code>. Mientras el usuario ve extraerse un
+  documento aparentemente legítimo, el proceso despliega en paralelo un ejecutable malicioso y su mecanismo de
+  persistencia, sin interacción adicional. Los errores que la trabajadora observó durante la extracción son
+  coherentes con los intentos de escritura del comprimido fuera de la ruta esperada.</p>
+  <p>CVE-2025-8088 fue explotada como 0-day por RomCom desde el 18 de julio de 2025 en campañas de spearphishing
+  contra los sectores financiero, manufacturero, defensa y logística en Europa y Canadá; quedó corregida en
+  WinRAR 7.13. También fue explotada por un segundo actor no identificado, y por el grupo "Paper WereWolf"
+  mediante la vulnerabilidad relacionada CVE-2025-6218.</p>
+
+  <h3>3. Cronología reconstruida (2 de septiembre de 2025, UTC)</h3>
+  <div class="pregunta"><b>Objetivo:</b> situar en el tiempo cada escritura detectada en $MFT y $UsnJrnl.</div>
+  <p>Toda la cadena de infección ocurre en una ventana de <strong>84 segundos</strong>, entre la llegada del
+  archivo y la apertura del documento señuelo.</p>
+  <table>
+    <tr><th>Hora (UTC)</th><th>Evento</th><th>Fuente</th></tr>
+    <tr><td>08:13:41</td><td>Creación de <code>Pathology-Department-Research-Records.rar</code> en <code>Users\susan\AppData\Local\Temp\vmware-susan\VMwareDnD\9775f068\</code></td><td>$MFT</td></tr>
+    <tr><td>08:13:50</td><td>Copia del .rar a <code>Users\susan\Documents\Pathology-Department-Research-Records.rar</code></td><td>$MFT</td></tr>
+    <tr><td>08:14:04</td><td>Susan abre el .rar con WinRAR: se genera <code>Pathology-Department-Research-Records.lnk</code> en <code>Recent</code>, disparando la explotación de CVE-2025-8088</td><td>$MFT / $J</td></tr>
+    <tr><td>08:14:18</td><td>El exploit escribe, fuera de la carpeta de extracción, el backdoor <code>Users\susan\AppData\Local\ApbxHelper.exe</code> y la persistencia <code>...\Start Menu\Programs\Startup\Display Settings.lnk</code>, apuntando a ese ejecutable</td><td>$MFT / $J</td></tr>
+    <tr><td>08:15:05</td><td>Susan abre el documento señuelo <code>Genotyping_Results_B57_Positive.pdf</code>, extraído junto al backdoor, sin observar nada anómalo más allá de los errores de extracción</td><td>$MFT</td></tr>
+  </table>
+
+  <h3>4. Artefactos e indicadores de compromiso</h3>
+  <div class="pregunta"><b>Objetivo:</b> inventariar la evidencia y los IOC disponibles con la información recuperada.</div>
+  <table>
+    <tr><th>Artefacto</th><th>Rol</th><th>Ruta</th></tr>
+    <tr><td>Pathology-Department-Research-Records.rar</td><td>Vector de explotación</td><td><code>Users\susan\Documents\</code></td></tr>
+    <tr><td>Genotyping_Results_B57_Positive.pdf</td><td>Documento señuelo</td><td><code>Users\susan\Documents\</code></td></tr>
+    <tr><td>ApbxHelper.exe</td><td>Backdoor</td><td><code>Users\susan\AppData\Local\</code></td></tr>
+    <tr><td>Display Settings.lnk</td><td>Mecanismo de persistencia</td><td><code>Users\susan\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup\</code></td></tr>
+  </table>
+  <ul>
+    <li><strong>Nombre de archivo:</strong> <code>Pathology-Department-Research-Records.rar</code> — archivo comprimido malicioso</li>
+    <li><strong>Nombre de archivo:</strong> <code>ApbxHelper.exe</code> — backdoor desplegado</li>
+    <li><strong>Nombre de archivo:</strong> <code>Display Settings.lnk</code> — persistencia vía carpeta Startup</li>
+    <li><strong>Hash (MD5/SHA-256):</strong> no disponible — no se dispuso del binario para calcularlo, solo de metadatos MFT/$J</li>
+    <li><strong>IP / dominio C2:</strong> no disponible — fuera del alcance de los artefactos analizados (sin captura de red ni registro)</li>
+  </ul>
+
+  <h3>5. Cadena MITRE ATT&amp;CK</h3>
+  <div class="pregunta"><b>Objetivo:</b> mapear el comportamiento observado a técnicas conocidas.</div>
+  <table>
+    <tr><th>Táctica</th><th>Técnica</th><th>Detalle</th></tr>
+    <tr><td>Initial Access</td><td>T1566</td><td>Entrega del archivo comprimido malicioso disfrazado de documentación legítima del departamento de patología (spearphishing)</td></tr>
+    <tr><td>Execution</td><td>CWE-35</td><td>Explotación de CVE-2025-8088: escritura de archivos fuera de la carpeta de extracción mediante Alternate Data Streams durante la descompresión con WinRAR</td></tr>
+    <tr><td>Persistence</td><td>T1547.009</td><td>Creación de <code>Display Settings.lnk</code> en Startup para asegurar la ejecución del backdoor en cada inicio de sesión</td></tr>
+    <tr><td>Defense Evasion</td><td>T1036</td><td>Nomenclatura genérica del backdoor (<code>ApbxHelper.exe</code>) y del acceso directo de persistencia para pasar desapercibidos</td></tr>
+    <tr><td>Defense Evasion</td><td>T1204.002</td><td>Uso de un documento señuelo (<code>Genotyping_Results_B57_Positive.pdf</code>) con temática creíble para distraer de la actividad en segundo plano</td></tr>
+  </table>
+
+  <h3>6. Limitaciones del análisis</h3>
+  <ul>
+    <li><strong>Sin sistema de archivos completo:</strong> la imagen solo permitió extraer $MFT, $J y $Max; no fue posible acceder al contenido real de los binarios (.rar, .exe, .lnk).</li>
+    <li><strong>Sin hashes ni análisis estático/dinámico</strong> del backdoor <code>ApbxHelper.exe</code>, al no disponer del binario.</li>
+    <li><strong>Sin artefactos de red</strong> (PCAP, proxy, DNS) que permitan confirmar comunicación con infraestructura de mando y control (C2).</li>
+    <li><strong>Sin hives de registro</strong> (SYSTEM, SOFTWARE, NTUSER.DAT) que hubieran permitido confirmar ejecución (UserAssist, Prefetch, ShellBags) más allá de la creación de archivos.</li>
+    <li><strong>Sin correo de origen:</strong> no se dispuso de artefactos de buzón (PST/OST, cabeceras) para confirmar el vector de entrega exacto ni el remitente.</li>
+  </ul>
+
+  <h2>Conclusiones y recomendaciones</h2>
+  <p>El fallo no está en el procedimiento de la usuaria, sino en el propio software de compresión: siguió su
+  flujo de trabajo habitual, y el punto de entrada fue una vulnerabilidad del lado de WinRAR, no un error suyo.
+  Eso no quita que el documento señuelo y la velocidad de la cadena (84 segundos) muestren un diseño pensado
+  específicamente para no levantar sospechas durante la ventana en la que el ataque realmente ocurre.</p>
+  <ul>
+    <li><strong>Actualizar WinRAR</strong> a la versión 7.13 o superior en todos los equipos, priorizando las áreas más expuestas.</li>
+    <li><strong>Aislar y reimaginar</strong> el equipo afectado, dado que el backdoor y su persistencia se confirman activos.</li>
+    <li><strong>Barrido del entorno (IOC sweep)</strong> en busca de <code>ApbxHelper.exe</code> y <code>Display Settings.lnk</code> en otros equipos con WinRAR instalado.</li>
+    <li><strong>Solicitar al equipo de correo</strong> las cabeceras y el remitente del mensaje original para identificar IOC adicionales de la campaña.</li>
+    <li><strong>Obtener una imagen forense completa</strong> (no solo triage) del equipo afectado, incluyendo hives de registro y el binario del backdoor, para análisis estático/dinámico y confirmación de C2.</li>
+    <li><strong>Reforzar la concienciación</strong> del personal sobre archivos comprimidos inesperados, especialmente los que generan errores inusuales durante la extracción.</li>
+  </ul>
+</main>
+
+<footer>© <span id="year"></span> Salvador Navarro · Portfolio · Writeups · Proyectos</footer>
+<script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>
